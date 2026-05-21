@@ -45,7 +45,7 @@ export default function Sidebar() {
     <>
       {/* Mobile Toggle */}
       <button 
-        className="md:hidden fixed top-4 left-4 z-50 p-2 glass-card text-white"
+        className="md:hidden fixed top-4 left-4 z-50 p-2 glass-card text-primary shadow-sm hover:scale-105 transition-all-smooth"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -53,7 +53,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <motion.div 
-        className={`fixed md:static inset-y-0 left-0 z-40 w-64 glass-card border-r border-white/10 flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        className={`fixed md:static inset-y-0 left-0 z-40 w-64 glass-card flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         initial={false}
       >
         <div className="p-6">
@@ -69,13 +69,13 @@ export default function Sidebar() {
                   className={({ isActive }) => 
                     `flex items-center gap-3 px-4 py-3 rounded-soft transition-all-smooth ${
                       isActive 
-                        ? 'bg-primary/20 text-primary border border-primary/30 glow-hover' 
-                        : 'text-muted hover:bg-white/5 hover:text-white'
+                        ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm font-semibold' 
+                        : 'text-muted hover:bg-primary/5 hover:text-primary hover:translate-x-1'
                     }`
                   }
                   onClick={() => setIsOpen(false)}
                 >
-                  <item.icon size={20} />
+                  <item.icon size={20} className="transition-transform duration-300" />
                   <span className="font-sans font-medium">{item.name}</span>
                 </NavLink>
               </li>
@@ -83,10 +83,10 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-primary/10">
           <button 
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-3 w-full text-left text-muted hover:text-red-400 hover:bg-white/5 rounded-soft transition-all-smooth"
+            className="flex items-center gap-3 px-4 py-3 w-full text-left text-muted hover:text-red-500 hover:bg-red-500/10 rounded-soft transition-all-smooth hover:translate-x-1"
           >
             <LogOut size={20} />
             <span className="font-sans font-medium">Logout</span>

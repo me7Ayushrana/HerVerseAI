@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #C084FC;
-  --color-secondary: #F472B6;
-  --color-accent: #818CF8;
-  --color-bg-dark: #0F0A1E;
-  --color-bg-card: rgba(255, 255, 255, 0.05);
-  --color-text: #F1F0FF;
-  --color-muted: #A78BFA;
-  --color-success: #34D399;
-  --color-warning: #FBBF24;
+  --color-primary: #EC4899;      /* Radiant Rose Pink */
+  --color-secondary: #F472B6;    /* Soft Blush Blossom Pink */
+  --color-accent: #A78BFA;       /* Soothing Lavender Lilac */
+  --color-bg-dark: #FFF5F7;      /* Pearlescent Rose White Cream background */
+  --color-bg-card: rgba(255, 255, 255, 0.75); /* Frosted white-pink glass card */
+  --color-text: #2D112E;         /* Deep berry plum dark text contrast */
+  --color-muted: #8E6D8A;        /* Soothing dusty mauve */
+  --color-success: #10B981;      /* Mint Teal for success states */
+  --color-warning: #F59E0B;      /* Warm golden apricot for alerts */
 }
 
 body {
@@ -23,6 +23,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   transition: background-color 1.2s ease;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(254, 242, 244, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(245, 243, 255, 0.8) 0%, transparent 50%);
 }
 
 * {
@@ -48,8 +51,9 @@ body {
   background: var(--color-bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px; /* 16px to 32px everywhere */
+  border: 1px solid rgba(236, 72, 153, 0.15); /* Delicate pink borders */
+  border-radius: 24px;
+  box-shadow: 0 8px 32px 0 rgba(236, 72, 153, 0.06); /* Soft rosy drop shadow */
 }
 
 /* Utility to remove sharp corners */
@@ -66,10 +70,59 @@ body {
 }
 
 .glow-hover:hover {
-  box-shadow: 0 0 20px rgba(192, 132, 252, 0.5); /* Primary color glow */
+  box-shadow: 0 0 25px rgba(236, 72, 153, 0.4); /* Pink color glow */
+  transform: translateY(-2px);
 }
 
 /* Global transitions */
 .transition-all-smooth {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium light theme form adjustments for perfect readability */
+input, select, textarea {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(236, 72, 153, 0.2) !important;
+  color: var(--color-text) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--color-muted) !important;
+  opacity: 0.6;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.2) !important;
+  background-color: #ffffff !important;
+  outline: none;
+}
+
+/* Sidebar links hover styling */
+.nav-link-item {
+  color: var(--color-muted);
+}
+.nav-link-item:hover {
+  color: var(--color-primary);
+  background-color: rgba(236, 72, 153, 0.05);
+}
+
+/* Floating micro-animations */
+@keyframes float-petal {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-80px) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.animate-float-slow {
+  animation: float-petal 10s infinite linear;
 }

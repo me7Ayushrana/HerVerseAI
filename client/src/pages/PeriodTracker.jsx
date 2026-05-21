@@ -88,20 +88,20 @@ export default function PeriodTracker() {
             <form onSubmit={handleSave} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-muted mb-1">Start Date *</label>
-                  <input type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-primary focus:outline-none" />
+                  <label className="block text-sm text-textMain font-medium mb-1">Start Date *</label>
+                  <input type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full bg-white border border-primary/20 rounded-xl px-4 py-2 text-textMain focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-sm text-muted mb-1">End Date (Optional)</label>
-                  <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-primary focus:outline-none" />
+                  <label className="block text-sm text-textMain font-medium mb-1">End Date (Optional)</label>
+                  <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full bg-white border border-primary/20 rounded-xl px-4 py-2 text-textMain focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-muted mb-2">Flow Intensity</label>
+                <label className="block text-sm text-textMain font-medium mb-2">Flow Intensity</label>
                 <div className="flex gap-2">
                   {['Spotting', 'Light', 'Moderate', 'Heavy'].map(flow => (
-                    <button key={flow} type="button" onClick={() => setFormData({...formData, flow})} className={`px-4 py-2 rounded-xl text-sm transition-colors ${formData.flow === flow ? 'bg-primary text-white font-bold' : 'bg-white/5 text-muted hover:bg-white/10 border border-white/10'}`}>
+                    <button key={flow} type="button" onClick={() => setFormData({...formData, flow})} className={`px-4 py-2 rounded-xl text-sm transition-all-smooth border ${formData.flow === flow ? 'bg-primary text-white font-bold border-primary shadow-sm' : 'bg-white/80 text-muted hover:bg-primary/5 hover:text-primary border-primary/20'}`}>
                       {flow}
                     </button>
                   ))}
@@ -109,10 +109,10 @@ export default function PeriodTracker() {
               </div>
 
               <div>
-                <label className="block text-sm text-muted mb-2">Symptoms</label>
+                <label className="block text-sm text-textMain font-medium mb-2">Symptoms</label>
                 <div className="flex flex-wrap gap-2">
                   {SYMPTOMS_LIST.map(s => (
-                    <button key={s} type="button" onClick={() => handleSymptomToggle(s)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${formData.symptoms.includes(s) ? 'bg-primary border-primary text-white' : 'border-white/20 bg-white/5 text-muted hover:bg-white/10'}`}>
+                    <button key={s} type="button" onClick={() => handleSymptomToggle(s)} className={`px-3 py-1 rounded-full text-xs border transition-all-smooth ${formData.symptoms.includes(s) ? 'bg-primary border-primary text-white shadow-sm font-semibold' : 'border-primary/25 bg-white/80 text-muted hover:bg-primary/5 hover:text-primary'}`}>
                       {s}
                     </button>
                   ))}
@@ -120,38 +120,38 @@ export default function PeriodTracker() {
               </div>
 
               <div>
-                <label className="block text-sm text-muted mb-1">Notes</label>
-                <textarea rows="2" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-primary focus:outline-none resize-none"></textarea>
+                <label className="block text-sm text-textMain font-medium mb-1">Notes</label>
+                <textarea rows="2" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-white border border-primary/20 rounded-xl px-4 py-2 text-textMain focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none resize-none transition-all" placeholder="How are you feeling today?"></textarea>
               </div>
 
-              <button type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-bold hover:opacity-90 glow-hover transition-all-smooth relative overflow-hidden">
+              <button type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-bold hover:opacity-95 shadow-md active:scale-[0.99] glow-hover transition-all-smooth relative overflow-hidden">
                 {saveSuccess ? 'Log Saved Successfully!' : 'Save Log'}
               </button>
             </form>
           </div>
           
-          <div className="glass-card p-6">
-            <h3 className="font-bold mb-4 text-primary">AI Insights & Cycle Health</h3>
-            <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
-              <p className="text-sm leading-relaxed">
+          <div className="glass-card p-6 border-primary/20 shadow-sm">
+            <h3 className="font-bold mb-4 text-primary text-lg">AI Insights & Cycle Health</h3>
+            <div className="p-4 rounded-xl bg-primary/10 border border-primary/25 shadow-inner">
+              <p className="text-sm leading-relaxed text-textMain">
                 {aiInsights}
               </p>
               {cycleInfo.nextPeriod && isValid(cycleInfo.nextPeriod) && (
-                <p className="mt-2 text-sm font-bold">
-                  Next predicted start: <span className="text-secondary">{format(cycleInfo.nextPeriod, 'MMMM d, yyyy')}</span>
+                <p className="mt-2 text-sm font-bold text-textMain">
+                  Next predicted start: <span className="text-primary font-extrabold">{format(cycleInfo.nextPeriod, 'MMMM d, yyyy')}</span>
                 </p>
               )}
             </div>
           </div>
 
-          <div className="glass-card p-6">
-            <h3 className="font-bold mb-4">Recent Logs</h3>
+          <div className="glass-card p-6 border-primary/20 shadow-sm">
+            <h3 className="font-bold mb-4 text-textMain">Recent Logs</h3>
             {periodLogs.length === 0 ? (
               <p className="text-sm text-muted">No periods logged yet.</p>
             ) : (
               <ul className="space-y-3">
                 {periodLogs.slice(0, 3).map((log, index) => (
-                  <li key={log.id || index} className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center text-sm">
+                  <li key={log.id || index} className="bg-white/95 border border-primary/15 shadow-sm rounded-xl p-3 flex justify-between items-center text-sm">
                     <div>
                       <span className="font-bold text-primary">
                         {log.startDate && isValid(parseISO(log.startDate)) 
@@ -161,7 +161,7 @@ export default function PeriodTracker() {
                       <span className="text-muted ml-2">({log.flow || 'Moderate'} flow)</span>
                     </div>
                     {log.symptoms && log.symptoms.length > 0 && (
-                      <span className="text-xs text-muted truncate max-w-[150px]">{log.symptoms.join(', ')}</span>
+                      <span className="text-xs text-muted truncate max-w-[150px] font-medium">{log.symptoms.join(', ')}</span>
                     )}
                   </li>
                 ))}
@@ -172,8 +172,8 @@ export default function PeriodTracker() {
 
         {/* Right Column: 3D Visuals & Charts */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="glass-card p-6 h-80 flex flex-col relative overflow-hidden">
-            <h3 className="font-bold mb-2 z-10">3D Cycle Visualization</h3>
+          <div className="glass-card p-6 h-80 flex flex-col relative overflow-hidden border-primary/20 shadow-sm">
+            <h3 className="font-bold text-textMain mb-2 z-10">3D Cycle Visualization</h3>
             <div className="absolute inset-0 top-12 z-0">
               <Canvas camera={{ position: [0, 0, 4] }}>
                 <ambientLight intensity={0.5} />
@@ -184,24 +184,24 @@ export default function PeriodTracker() {
                 <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={2} />
               </Canvas>
             </div>
-            <div className="absolute bottom-4 left-4 right-4 z-10 p-3 rounded-xl bg-bgDark/80 backdrop-blur-md border border-white/10 text-center text-sm text-white flex justify-between items-center">
-              <span>Phase: <span className="font-bold" style={{color: cycleInfo.color}}>{cycleInfo.phase}</span></span>
-              <span>Day {cycleInfo.dayOfCycle}</span>
+            <div className="absolute bottom-4 left-4 right-4 z-10 p-3 rounded-xl bg-white/90 backdrop-blur-md border border-primary/20 text-center text-sm text-textMain flex justify-between items-center shadow-md">
+              <span className="font-medium">Phase: <span className="font-bold" style={{color: cycleInfo.color}}>{cycleInfo.phase}</span></span>
+              <span className="font-bold text-primary">Day {cycleInfo.dayOfCycle}</span>
             </div>
           </div>
 
-          <div className="glass-card p-6">
-            <h3 className="font-bold mb-4">Cycle Length History (Days)</h3>
+          <div className="glass-card p-6 border-primary/20 shadow-sm">
+            <h3 className="font-bold text-textMain mb-4">Cycle Length History (Days)</h3>
             <div className="h-60 w-full text-xs">
               {cycleHistory.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={cycleHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="name" stroke="#A78BFA" />
-                    <YAxis stroke="#A78BFA" domain={[15, 50]} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0F0A1E', borderColor: 'rgba(255,255,255,0.1)' }} />
-                    <ReferenceLine y={28} stroke="#34D399" strokeDasharray="3 3" label={{ position: 'top', value: 'Avg 28', fill: '#34D399', fontSize: 10 }} />
-                    <Line type="monotone" dataKey="length" stroke="#F472B6" strokeWidth={3} activeDot={{ r: 8 }} animationDuration={1500} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(236,72,153,0.15)" />
+                    <XAxis dataKey="name" stroke="#8E6D8A" />
+                    <YAxis stroke="#8E6D8A" domain={[15, 50]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: 'rgba(236, 72, 153, 0.25)', borderRadius: '16px', color: '#2D112E' }} />
+                    <ReferenceLine y={28} stroke="#10B981" strokeDasharray="3 3" label={{ position: 'top', value: 'Avg 28', fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} />
+                    <Line type="monotone" dataKey="length" stroke="#EC4899" strokeWidth={3} activeDot={{ r: 8 }} animationDuration={1500} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
