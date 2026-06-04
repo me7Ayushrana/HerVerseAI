@@ -5,6 +5,7 @@ import {
   MessageSquareHeart, Bell, ChevronRight, Sparkles 
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { aiTipsDatabase } from '../utils/aiTips';
 
 export default function Dashboard() {
   const user = useAuthStore(state => state.user);
@@ -13,7 +14,7 @@ export default function Dashboard() {
 
   const [aiTip, setAiTip] = useState(() => {
     return localStorage.getItem('herverse-cached-ai-tip') || 
-      "Since you're in the luteal phase of your cycle, try adding magnesium-rich foods like spinach or dark chocolate to help reduce potential cramps and stabilize mood.";
+      aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
   });
   const [isGeneratingTip, setIsGeneratingTip] = useState(false);
 
@@ -23,20 +24,13 @@ export default function Dashboard() {
     setIsGeneratingTip(true);
 
     if (!geminiApiKey) {
-      // Rotate through a few static high-quality tips
-      const offlineTips = [
-        "Hydration is key today! Drinking 2.5L of water helps support hormonal balance and reduces bloating during your luteal phase.",
-        "Consider doing a low-impact workout like gentle yoga or walking today to help regulate stress hormones and support overall heart health.",
-        "Incorporate healthy fats like avocado or seeds into your lunch to maintain stable blood sugar levels and energy throughout the afternoon.",
-        "Take 2 minutes to practice mindful breathing in the Mental Wellness tab to reduce cortisol levels and boost your focus.",
-        "Opt for warm, iron-rich meals like spinach soup or lentils today to support recovery and nourish your body."
-      ];
+      // Pick a random tip from our extensive 101+ tips database
       setTimeout(() => {
-        const nextTip = offlineTips[Math.floor(Math.random() * offlineTips.length)];
+        const nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
         setAiTip(nextTip);
         localStorage.setItem('herverse-cached-ai-tip', nextTip);
         setIsGeneratingTip(false);
-      }, 800);
+      }, 700);
       return;
     }
 
