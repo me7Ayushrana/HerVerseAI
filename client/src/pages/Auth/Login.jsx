@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
-import axios from 'axios';
 import wellnessHero from '../../assets/wellness_hero.png';
 
 export default function Login() {
@@ -22,12 +21,11 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    try {
-      const res = await axios.post('/api/auth/login', formData);
-      login(res.data, res.data.token);
+    const res = await login(formData.email, formData.password);
+    if (res.success) {
       navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+    } else {
+      setError(res.error || 'Login failed');
     }
   };
 

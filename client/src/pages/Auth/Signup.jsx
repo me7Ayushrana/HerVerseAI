@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
-import axios from 'axios';
 import wellnessHero from '../../assets/wellness_hero.png';
 
 export default function Signup() {
-  const login = useAuthStore(state => state.login);
+  const signup = useAuthStore(state => state.signup);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -25,12 +24,11 @@ export default function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    try {
-      const res = await axios.post('/api/auth/register', formData);
-      login(res.data, res.data.token);
+    const res = await signup(formData.email, formData.password, formData.name);
+    if (res.success) {
       navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+    } else {
+      setError(res.error || 'Registration failed');
     }
   };
 

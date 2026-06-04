@@ -16,6 +16,8 @@ import Chatbot from './pages/Chatbot';
 import Analytics from './pages/Analytics';
 import Education from './pages/Education';
 import Emergency from './pages/Emergency';
+import HealthCalculators from './pages/HealthCalculators';
+import AdminPanel from './pages/AdminPanel';
 import Sidebar from './components/layout/Sidebar';
 import { useAuthStore } from './store/authStore';
 
@@ -28,7 +30,7 @@ const ProtectedRoute = ({ children }) => {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-bgDark pt-16 md:pt-0">
         {children}
       </div>
     </div>
@@ -58,6 +60,8 @@ function App() {
         <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
         <Route path="/dashboard/education" element={<ProtectedRoute><Education /></ProtectedRoute>} />
         <Route path="/dashboard/emergency" element={<ProtectedRoute><Emergency /></ProtectedRoute>} />
+        <Route path="/dashboard/calculators" element={<ProtectedRoute><HealthCalculators /></ProtectedRoute>} />
+        <Route path="/dashboard/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
       </Routes>
     </Router>
   );

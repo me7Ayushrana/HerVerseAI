@@ -14,32 +14,7 @@ export default function Landing() {
       <div className="absolute bottom-[10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
       <div className="absolute top-[40%] right-[20%] w-[30vw] h-[30vw] rounded-full bg-accent/8 blur-[100px] pointer-events-none" />
 
-      {/* Floating decorative petals */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        {[...Array(8)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute text-primary/30 text-xl"
-            style={{
-              top: `${15 + (i * 11) % 70}%`,
-              left: `${10 + (i * 17) % 80}%`,
-            }}
-            animate={{
-              y: [0, -40, 0],
-              x: [0, (i % 2 === 0 ? 25 : -25), 0],
-              rotate: [0, i % 2 === 0 ? 30 : -30, 0],
-              scale: [1, 1.2, 1],
-            }}
-            transition={{
-              duration: 8 + i * 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          >
-            🌸
-          </motion.div>
-        ))}
-      </div>
+
 
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center rounded-full border-primary/10">
