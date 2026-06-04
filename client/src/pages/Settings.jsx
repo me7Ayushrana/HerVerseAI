@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Sparkles, PhoneCall, ShieldCheck, Check, Key } from 'lucide-react';
+import { User, Sparkles, PhoneCall, ShieldCheck, Check, Key, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export default function Settings() {
@@ -125,6 +125,23 @@ export default function Settings() {
             ) : (
               <span className="text-primary">○ Offline (Local Database Fallback)</span>
             )}
+          </div>
+
+          {/* Help Guide Box */}
+          <div className="mt-6 pt-5 border-t border-primary/10 text-xs space-y-3">
+            <h4 className="font-bold text-textMain flex items-center gap-1.5">
+              <HelpCircle size={14} className="text-primary" /> Guide: How to get a free key
+            </h4>
+            <ol className="list-decimal list-inside space-y-1.5 text-muted pl-1">
+              <li>Go to <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
+              <li>Sign in with your standard Google (Gmail) account.</li>
+              <li>Click the blue <strong>"Get API Key"</strong> button in the left menu.</li>
+              <li>Click <strong>"Create API Key in new project"</strong>.</li>
+              <li>Copy your key (starts with <code>AIzaSy...</code>) and paste it above!</li>
+            </ol>
+            <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 text-[10px] text-muted leading-relaxed">
+              💡 <strong>Developer Facts:</strong> The Gemini API is 100% free, requires no credit card, and has a limit of 15 requests per minute. Your key is stored directly in your browser's localStorage and is completely private.
+            </div>
           </div>
         </div>
 

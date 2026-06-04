@@ -237,6 +237,13 @@ IMPORTANT RULES:
                 Your key is stored <strong>locally and securely</strong> in your web browser, never uploaded to GitHub or shared.
               </p>
               
+              <div className="mb-4 bg-primary/5 p-3 rounded-xl border border-primary/10 text-[10px] text-muted leading-relaxed space-y-1">
+                <p><strong>🔑 How to get your free key (Takes 30 seconds):</strong></p>
+                <p>1. Open <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a> and sign in with Gmail.</p>
+                <p>2. Click <strong>"Get API Key"</strong> -&gt; <strong>"Create API Key in new project"</strong>.</p>
+                <p>3. Copy the key and save it below. No credit card or billing is required!</p>
+              </div>
+              
               <form onSubmit={handleSaveKey} className="flex gap-2">
                 <input 
                   type="password" 
