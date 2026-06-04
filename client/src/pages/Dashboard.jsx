@@ -4,8 +4,13 @@ import {
   Droplet, Smile, Activity, Moon, Calendar, 
   MessageSquareHeart, Bell, ChevronRight 
 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 export default function Dashboard() {
+  const user = useAuthStore(state => state.user);
+  const displayName = user?.name || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -16,7 +21,7 @@ export default function Dashboard() {
       {/* Top Bar */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-display font-bold text-gradient">Good morning, Sarah 👋</h2>
+          <h2 className="text-3xl font-display font-bold text-gradient">Good morning, {displayName} 👋</h2>
           <p className="text-muted text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex gap-4">
@@ -24,7 +29,7 @@ export default function Dashboard() {
             <Bell size={20} className="text-primary" />
           </button>
           <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary to-secondary p-1 shadow-md">
-            <div className="w-full h-full rounded-full bg-bgDark flex items-center justify-center font-bold text-primary">S</div>
+            <div className="w-full h-full rounded-full bg-bgDark flex items-center justify-center font-bold text-primary">{initial}</div>
           </div>
         </div>
       </div>
