@@ -70,10 +70,34 @@ IMPORTANT RULES:
 4. Keep your responses concise and well-formatted using markdown.
 `;
 
-        const formattedHistory = messages.slice(-8).map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text }]
-        }));
+        // Format history so it strictly alternates and starts with 'user'
+        const formattedHistory = [];
+        for (const msg of messages.slice(-8)) {
+          const role = msg.role === 'user' ? 'user' : 'model';
+          if (formattedHistory.length === 0) {
+            if (role === 'user') {
+              formattedHistory.push({ role, parts: [{ text: msg.text }] });
+            }
+          } else {
+            const lastItem = formattedHistory[formattedHistory.length - 1];
+            if (lastItem.role === role) {
+              lastItem.parts[0].text += "\n" + msg.text;
+            } else {
+              formattedHistory.push({ role, parts: [{ text: msg.text }] });
+            }
+          }
+        }
+
+        // Add the new user message, combining with the last message if it was also a user message
+        const contents = [...formattedHistory];
+        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+          contents[contents.length - 1].parts[0].text += "\n" + userText;
+        } else {
+          contents.push({
+            role: 'user',
+            parts: [{ text: userText }]
+          });
+        }
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`,
@@ -83,21 +107,10 @@ IMPORTANT RULES:
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [{ text: "System Instructions: " + SYSTEM_PROMPT }]
-                },
-                {
-                  role: 'model',
-                  parts: [{ text: "Understood. I am HerVerse AI, ready to assist." }]
-                },
-                ...formattedHistory,
-                {
-                  role: 'user',
-                  parts: [{ text: userText }]
-                }
-              ],
+              contents,
+              system_instruction: {
+                parts: [{ text: SYSTEM_PROMPT }]
+              },
               generationConfig: {
                 maxOutputTokens: 1000,
               }
