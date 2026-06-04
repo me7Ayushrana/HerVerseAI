@@ -18,6 +18,7 @@ import Education from './pages/Education';
 import Emergency from './pages/Emergency';
 import HealthCalculators from './pages/HealthCalculators';
 import AdminPanel from './pages/AdminPanel';
+import Settings from './pages/Settings';
 import Sidebar from './components/layout/Sidebar';
 import { useAuthStore } from './store/authStore';
 
@@ -62,6 +63,7 @@ function App() {
         <Route path="/dashboard/emergency" element={<ProtectedRoute><Emergency /></ProtectedRoute>} />
         <Route path="/dashboard/calculators" element={<ProtectedRoute><HealthCalculators /></ProtectedRoute>} />
         <Route path="/dashboard/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       </Routes>
     </Router>
   );

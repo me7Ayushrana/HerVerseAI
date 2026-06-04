@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -38,6 +39,7 @@ const navItems = [
   { name: 'Community', path: '/dashboard/community', icon: Users },
   { name: 'Education', path: '/dashboard/education', icon: BookOpen },
   { name: 'Emergency', path: '/dashboard/emergency', icon: PhoneCall },
+  { name: 'Profile & Settings', path: '/dashboard/settings', icon: Settings },
 ];
 
 export default function Sidebar() {
