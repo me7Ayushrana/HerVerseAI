@@ -119,7 +119,14 @@ IMPORTANT RULES:
         );
 
         if (!response.ok) {
-          throw new Error(`Gemini API returned status ${response.status}`);
+          let errMsg = `Status ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData.error?.message) {
+              errMsg = errData.error.message;
+            }
+          } catch (_) {}
+          throw new Error(errMsg);
         }
 
         const data = await response.json();
@@ -130,7 +137,7 @@ IMPORTANT RULES:
         runFallback(
           userText, 
           chatHistory, 
-          "⚠️ **Note: Live AI Connection failed.**\n*Temporarily falling back to our offline wellness database:*\n\n"
+          `⚠️ **Note: Live AI Connection failed (${error.message || error}).**\n*Temporarily falling back to our offline wellness database:*\n\n`
         );
       } finally {
         setIsLoading(false);
