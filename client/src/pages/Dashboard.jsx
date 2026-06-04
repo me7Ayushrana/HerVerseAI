@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Droplet, Smile, Moon, Calendar, 
@@ -102,6 +103,28 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* API Key Connection Alert Banner */}
+      {!hasApiKey && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/5 border border-primary/20 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 text-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">✨</span>
+            <p className="text-textMain font-semibold">
+              Live Gemini AI is currently offline. Connect your free API key in Settings to unlock real-time personalized wellness insights!
+            </p>
+          </div>
+          <Link 
+            to="/dashboard/settings" 
+            className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-95 shadow active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Sparkles size={14} /> Connect API Key
+          </Link>
+        </motion.div>
+      )}
 
       {/* Row 1: Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

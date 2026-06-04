@@ -28,6 +28,8 @@ export default function Chatbot() {
     localStorage.setItem('herverse-chat-mode', newMode);
   };
 
+  const hasApiKey = !!(customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -254,6 +256,29 @@ IMPORTANT RULES:
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Alert Banner if API key is not connected */}
+      {!hasApiKey && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/5 border border-primary/20 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 text-xs mb-4"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">✨</span>
+            <p className="text-textMain font-semibold text-left">
+              Chatbot is running in Offline Fallback Mode. Connect your free Gemini API key to activate live responses!
+            </p>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-95 shadow active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+          >
+            <Sparkles size={12} /> Connect API Key
+          </button>
+        </motion.div>
+      )}
 
       {/* Main Chat Panel */}
       <div className="flex-1 glass-card p-6 flex flex-col overflow-hidden mb-6 border-primary/20 shadow-xl">
