@@ -33,7 +33,8 @@ export default function Chatbot() {
       // For local testing without token being strictly enforced on the server if not using protect,
       // But since we added protect, we need the token.
       
-      const res = await axios.post('/api/chat', { 
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await axios.post(`${apiBase}/api/chat`, { 
         message: userText, 
         history: messages 
       }, config);
