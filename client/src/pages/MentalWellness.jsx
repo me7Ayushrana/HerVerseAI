@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, Brain, Volume2, VolumeX, Play, Pause, Save, Heart, Sparkles, Moon } from 'lucide-react';
+import { Smile, Brain, Volume2, VolumeX, Play, Pause, Save, Heart, Sparkles, Moon, Plus, Trash2, Edit3, Check, X, Music, Loader2 } from 'lucide-react';
 import { classifySentiment } from '../utils/sentimentClassifier';
 
 export default function MentalWellness() {
@@ -21,8 +21,22 @@ export default function MentalWellness() {
     ];
   });
 
-  // Sound board states
-  const [playingSound, setPlayingSound] = useState(null); // ocean, rain, forest, white
+  // YouTube player and tracks state
+  const [tracks, setTracks] = useState(() => {
+    const saved = localStorage.getItem('herverse-custom-tracks');
+    return saved ? JSON.parse(saved) : [
+      { id: 'default-1', name: 'Relaxing Zen Soundscape (Pre-Added)', url: 'https://youtu.be/D1f2dSi7kG4?si=k9cMfhtvzsqBME4o', videoId: 'D1f2dSi7kG4' }
+    ];
+  });
+  const [newTrackName, setNewTrackName] = useState('');
+  const [newTrackUrl, setNewTrackUrl] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingTrackId, setEditingTrackId] = useState(null);
+  const [editingTrackName, setEditingTrackName] = useState('');
+  
+  const [player, setPlayer] = useState(null);
+  const [playingTrackId, setPlayingTrackId] = useState(null);
+  const [playerState, setPlayerState] = useState(-1); // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering
 
   // Breathing cycle timer effect
   useEffect(() => {
@@ -91,12 +105,148 @@ export default function MentalWellness() {
     return 1;
   };
 
-  const sounds = [
-    { id: 'ocean', name: 'Ocean Waves', description: 'Calming shore tides', icon: '🌊' },
-    { id: 'rain', name: 'Deep Rainfall', description: 'Gentle storm showers', icon: '🌧️' },
-    { id: 'forest', name: 'Zen Forest', description: 'Rustling trees & birds', icon: '🌳' },
-    { id: 'white', name: 'White Noise', description: 'Steady static hum', icon: '💨' }
-  ];
+  // Load YouTube API script on mount
+  useEffect(() => {
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+  }, []);
+
+  // Clean up player on unmount
+  useEffect(() => {
+    return () => {
+      if (player && typeof player.destroy === 'function') {
+        player.destroy();
+      }
+    };
+  }, [player]);
+
+  const saveTracks = (newTracks) => {
+    setTracks(newTracks);
+    localStorage.setItem('herverse-custom-tracks', JSON.stringify(newTracks));
+  };
+
+  const extractVideoId = (url) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handleAddTrack = (e) => {
+    e.preventDefault();
+    if (!newTrackName.trim() || !newTrackUrl.trim()) return;
+
+    const videoId = extractVideoId(newTrackUrl);
+    if (!videoId) {
+      alert("Invalid YouTube Link. Please copy and paste a valid YouTube watch or share URL.");
+      return;
+    }
+
+    const newTrack = {
+      id: Date.now().toString(),
+      name: newTrackName.trim(),
+      url: newTrackUrl.trim(),
+      videoId
+    };
+
+    const updated = [...tracks, newTrack];
+    saveTracks(updated);
+    setNewTrackName('');
+    setNewTrackUrl('');
+    setShowAddForm(false);
+  };
+
+  const handleDeleteTrack = (trackId, e) => {
+    e.stopPropagation();
+    const updated = tracks.filter(t => t.id !== trackId);
+    saveTracks(updated);
+    if (playingTrackId === trackId) {
+      if (player && typeof player.stopVideo === 'function') {
+        player.stopVideo();
+      }
+      setPlayingTrackId(null);
+      setPlayerState(-1);
+    }
+  };
+
+  const handleStartRename = (track, e) => {
+    e.stopPropagation();
+    setEditingTrackId(track.id);
+    setEditingTrackName(track.name);
+  };
+
+  const handleSaveRename = (trackId, e) => {
+    if (e) e.stopPropagation();
+    if (!editingTrackName.trim()) return;
+
+    const updated = tracks.map(t => t.id === trackId ? { ...t, name: editingTrackName.trim() } : t);
+    saveTracks(updated);
+    setEditingTrackId(null);
+  };
+
+  const handlePlayPause = (track) => {
+    if (playingTrackId === track.id) {
+      if (player && typeof player.getPlayerState === 'function') {
+        const state = player.getPlayerState();
+        if (state === 1) { // playing
+          player.pauseVideo();
+          setPlayerState(2);
+        } else {
+          player.playVideo();
+          setPlayerState(1);
+        }
+      }
+    } else {
+      setPlayingTrackId(track.id);
+      setPlayerState(3); // buffering
+
+      if (player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(track.videoId);
+        player.playVideo();
+      } else {
+        const initPlayer = () => {
+          const ytPlayer = new window.YT.Player('youtube-player-target', {
+            height: '0',
+            width: '0',
+            videoId: track.videoId,
+            playerVars: {
+              autoplay: 1,
+              controls: 0,
+              showinfo: 0,
+              rel: 0,
+              loop: 0
+            },
+            events: {
+              onReady: (event) => {
+                event.target.playVideo();
+                setPlayer(event.target);
+                setPlayerState(1);
+              },
+              onStateChange: (event) => {
+                setPlayerState(event.data);
+              },
+              onError: (event) => {
+                console.error("YouTube Player Error:", event.data);
+                setPlayerState(-1);
+                alert("Failed to load this YouTube audio stream. Ensure the video allows embedding and is not restricted.");
+              }
+            }
+          });
+        };
+
+        if (window.YT && window.YT.Player) {
+          initPlayer();
+        } else {
+          window.onYouTubeIframeAPIReady = () => {
+            initPlayer();
+          };
+        }
+      }
+    }
+  };
 
   return (
     <motion.div 
@@ -156,27 +306,183 @@ export default function MentalWellness() {
             </button>
           </div>
 
-          {/* Sound Board */}
-          <div className="glass-card p-6 border-primary/20 shadow-sm">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-              <Volume2 className="text-primary" size={22} /> Mindful Sound Board
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {sounds.map((sound) => (
-                <button 
-                  key={sound.id}
-                  onClick={() => setPlayingSound(playingSound === sound.id ? null : sound.id)}
-                  className={`p-4 rounded-2xl border text-center flex flex-col items-center gap-2 transition-all-smooth ${playingSound === sound.id ? 'bg-primary/10 border-primary shadow-sm' : 'bg-white/80 border-primary/15 hover:bg-primary/5'}`}
+          {/* Mindful Music Player (YouTube Audio) */}
+          <div className="glass-card p-6 border-primary/20 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Volume2 className="text-primary" size={22} /> Mindful Music Player
+              </h3>
+              <button 
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/25 text-primary text-xs font-bold transition-all flex items-center gap-1"
+              >
+                {showAddForm ? <X size={14} /> : <Plus size={14} />} Add Music
+              </button>
+            </div>
+
+            {/* Hidden Div target for YouTube IFrame API */}
+            <div style={{ width: 0, height: 0, opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
+              <div id="youtube-player-target"></div>
+            </div>
+
+            {/* Add Music Form */}
+            <AnimatePresence>
+              {showAddForm && (
+                <motion.form 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  onSubmit={handleAddTrack}
+                  className="bg-white/80 p-4 rounded-2xl border border-primary/15 space-y-3 overflow-hidden text-left"
                 >
-                  <span className="text-3xl">{sound.icon}</span>
-                  <div className="text-sm font-bold">{sound.name}</div>
-                  <div className="text-xs text-muted leading-tight">{sound.description}</div>
-                  <div className="mt-2 text-primary">
-                    {playingSound === sound.id ? <Pause size={18} /> : <Play size={18} />}
+                  <h4 className="text-xs font-bold text-textMain uppercase tracking-wider">Add YouTube Music Stream</h4>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted uppercase">Track Title</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="e.g. Peaceful Rain & Lofi"
+                      value={newTrackName}
+                      onChange={e => setNewTrackName(e.target.value)}
+                      className="w-full bg-white border border-primary/15 rounded-xl px-3 py-2 text-xs text-textMain focus:outline-none focus:border-primary"
+                    />
                   </div>
-                </button>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted uppercase">YouTube Link</label>
+                    <input 
+                      type="url"
+                      required
+                      placeholder="e.g. https://youtu.be/..."
+                      value={newTrackUrl}
+                      onChange={e => setNewTrackUrl(e.target.value)}
+                      className="w-full bg-white border border-primary/15 rounded-xl px-3 py-2 text-xs text-textMain focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    className="w-full py-2 rounded-xl bg-primary text-white font-bold text-xs hover:opacity-95 transition-all"
+                  >
+                    Add to Playlist
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+
+            {/* Playlist Track rows */}
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              {tracks.map((track) => (
+                <div 
+                  key={track.id}
+                  onClick={() => handlePlayPause(track)}
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all-smooth ${playingTrackId === track.id ? 'bg-primary/5 border-primary/40 shadow-sm' : 'bg-white/80 border-primary/10 hover:bg-primary/5'}`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                      {playingTrackId === track.id && playerState === 1 ? (
+                        <span className="flex gap-0.5 items-end h-3">
+                          <span className="w-0.5 bg-primary animate-[bounce_0.8s_infinite_0.1s] h-3" style={{ animationDuration: '0.6s' }} />
+                          <span className="w-0.5 bg-primary animate-[bounce_0.8s_infinite_0.3s] h-2" style={{ animationDuration: '0.4s' }} />
+                          <span className="w-0.5 bg-primary animate-[bounce_0.8s_infinite_0.2s] h-3" style={{ animationDuration: '0.5s' }} />
+                        </span>
+                      ) : playingTrackId === track.id && playerState === 3 ? (
+                        <Loader2 size={16} className="animate-spin text-primary" />
+                      ) : (
+                        <Music size={16} />
+                      )}
+                    </div>
+
+                    {editingTrackId === track.id ? (
+                      <input 
+                        type="text"
+                        value={editingTrackName}
+                        onChange={e => setEditingTrackName(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSaveRename(track.id);
+                          if (e.key === 'Escape') setEditingTrackId(null);
+                        }}
+                        className="bg-white border border-primary/30 rounded px-2.5 py-1 text-xs text-textMain focus:outline-none w-full max-w-[220px]"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="text-sm font-semibold truncate text-textMain pr-2 text-left">
+                        {track.name}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {editingTrackId === track.id ? (
+                      <>
+                        <button 
+                          onClick={(e) => handleSaveRename(track.id, e)} 
+                          className="p-1 rounded hover:bg-emerald-50 text-emerald-600 transition-colors"
+                          title="Save Name"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setEditingTrackId(null); }} 
+                          className="p-1 rounded hover:bg-rose-50 text-rose-600 transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={(e) => handleStartRename(track, e)}
+                          className="p-1 rounded hover:bg-primary/10 text-muted hover:text-primary transition-colors"
+                          title="Rename Track"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        {track.id !== 'default-1' && (
+                          <button 
+                            onClick={(e) => handleDeleteTrack(track.id, e)}
+                            className="p-1 rounded hover:bg-rose-50 text-muted hover:text-rose-600 transition-colors"
+                            title="Delete Track"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
+
+            {/* Controller status bar */}
+            {playingTrackId && (
+              <div className="p-3 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="relative flex h-2 w-2 flex-shrink-0">
+                    {playerState === 1 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>}
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${playerState === 1 ? 'bg-primary' : playerState === 3 ? 'bg-amber-400' : 'bg-muted'}`}></span>
+                  </span>
+                  <span className="font-semibold truncate text-textMain text-left">
+                    {playerState === 1 ? 'Playing: ' : playerState === 3 ? 'Buffering: ' : 'Paused: '}
+                    {tracks.find(t => t.id === playingTrackId)?.name}
+                  </span>
+                </div>
+                
+                <button 
+                  onClick={() => {
+                    const activeTrack = tracks.find(t => t.id === playingTrackId);
+                    if (activeTrack) handlePlayPause(activeTrack);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-primary text-white hover:opacity-95 font-bold transition-all shadow-sm flex items-center gap-1 flex-shrink-0 scale-95"
+                >
+                  {playerState === 1 ? <Pause size={12} /> : <Play size={12} />}
+                  {playerState === 1 ? 'Pause' : 'Play'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
