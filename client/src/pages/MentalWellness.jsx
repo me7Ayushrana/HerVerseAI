@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Brain, Volume2, VolumeX, Play, Pause, Save, Heart, Sparkles, Moon } from 'lucide-react';
+import { classifySentiment } from '../utils/sentimentClassifier';
 
 export default function MentalWellness() {
   // Breathing visualizer states
@@ -59,17 +60,27 @@ export default function MentalWellness() {
     }
   };
 
+  const [latestAnalysis, setLatestAnalysis] = useState(null);
+
   const handleSaveMood = (e) => {
     e.preventDefault();
+    if (!notes.trim()) return;
+
+    // Run local Naive Bayes Sentiment Classifier
+    const analysis = classifySentiment(notes);
+
     const newLog = {
       id: Date.now().toString(),
       date: new Date().toISOString(),
       mood,
-      notes
+      notes,
+      sentiment: analysis
     };
+    
     const updated = [newLog, ...moodLogs];
     setMoodLogs(updated);
     localStorage.setItem('herverse-mood-logs', JSON.stringify(updated));
+    setLatestAnalysis(analysis);
     setNotes('');
   };
 
@@ -212,6 +223,70 @@ export default function MentalWellness() {
                 <Save size={18} /> Save Entry
               </button>
             </form>
+
+            {/* Local Naive Bayes Sentiment Analysis Results */}
+            {latestAnalysis && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className={`p-4 rounded-2xl border border-primary/20 ${latestAnalysis.bg} space-y-3 mt-4 text-left`}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-primary" /> Local Naive Bayes ML Analysis
+                  </span>
+                  <button 
+                    onClick={() => setLatestAnalysis(null)} 
+                    className="text-xs text-muted hover:text-textMain font-bold"
+                  >
+                    Clear
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{latestAnalysis.emoji}</span>
+                  <div>
+                    <h4 className={`font-bold text-sm ${latestAnalysis.color}`}>
+                      {latestAnalysis.label}
+                    </h4>
+                    <p className="text-[9px] text-muted font-bold">PROCESSED {latestAnalysis.processedTokens} TOKENS</p>
+                  </div>
+                </div>
+
+                <p className="text-xs font-medium leading-relaxed text-textMain">
+                  {latestAnalysis.advice}
+                </p>
+
+                {/* Confidences breakdown */}
+                <div className="space-y-1.5 pt-2 border-t border-primary/10">
+                  {Object.entries(latestAnalysis.confidences).map(([className, percentage]) => {
+                    const classLabels = {
+                      happy: "Happy",
+                      calm: "Calm",
+                      anxious: "Anxious",
+                      sad: "Sad"
+                    };
+                    const classColors = {
+                      happy: "bg-emerald-400",
+                      calm: "bg-sky-400",
+                      anxious: "bg-amber-400",
+                      sad: "bg-rose-400"
+                    };
+                    return (
+                      <div key={className} className="text-[10px] font-bold text-textMain">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span>{classLabels[className]}</span>
+                          <span>{percentage}%</span>
+                        </div>
+                        <div className="w-full bg-black/5 rounded-full h-1">
+                          <div className={`h-full ${classColors[className]} rounded-full`} style={{ width: `${percentage}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Mood History Logs */}
@@ -228,6 +303,11 @@ export default function MentalWellness() {
                       <span className="text-xs text-muted font-bold">
                         {new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {log.sentiment && (
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border border-primary/10 ${log.sentiment.bg} ${log.sentiment.color}`}>
+                          {log.sentiment.emoji} {log.sentiment.label}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-textMain leading-relaxed break-words">{log.notes}</p>
                   </div>
