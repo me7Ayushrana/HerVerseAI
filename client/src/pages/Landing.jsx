@@ -1,13 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Heart, Shield, Activity, Calendar, ArrowRight, MessageSquareHeart, Check, HelpCircle } from 'lucide-react';
+import { Sparkles, Heart, Shield, Activity, Calendar, ArrowRight, MessageSquareHeart, Check, HelpCircle, Sun, Moon } from 'lucide-react';
 import wellnessHero from '../assets/wellness_hero.png';
 
 export default function Landing() {
   const [activeDemo, setActiveDemo] = useState('pcos');
   const [demoMessages, setDemoMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
+
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('herverse-dark-mode') === 'true';
+    if (saved) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    return saved;
+  });
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('herverse-dark-mode', next.toString());
+      if (next) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return next;
+    });
+  };
 
   const demoThreads = {
     pcos: {
@@ -83,7 +106,14 @@ To naturally soothe uterine muscle spasms:
           <a href="#features" className="hover:text-primary transition-colors">Features</a>
           <a href="#demo" className="hover:text-primary transition-colors">Try AI Demo</a>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <button 
+            onClick={toggleDarkMode}
+            className="p-2.5 rounded-full hover:bg-primary/10 text-muted hover:text-primary transition-all-smooth"
+            aria-label="Toggle Dark Mode"
+          >
+            {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+          </button>
           <Link to="/login" className="px-5 py-2.5 rounded-full text-muted hover:text-primary hover:bg-primary/5 transition-colors text-sm font-semibold">Log In</Link>
           <Link to="/signup" className="px-5 py-2.5 rounded-full bg-gradient-to-r from-primary to-secondary text-white text-sm font-bold hover:opacity-90 glow-hover transition-all-smooth shadow-md shadow-primary/10">Sign Up</Link>
         </div>
