@@ -816,7 +816,7 @@ export default function Nutrition() {
             </div>
 
             {viewTab === 'guide' ? (
-              <div className="bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 rounded-2xl p-5 flex items-start gap-4">
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-start gap-4">
                 <span className="text-4xl p-2 bg-white rounded-2xl shadow-sm border border-primary/10">
                   {currentRecs.emoji}
                 </span>
@@ -860,7 +860,7 @@ export default function Nutrition() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 rounded-2xl p-5">
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
                 <div className="flex justify-between items-center mb-4 border-b border-primary/10 pb-3">
                   <div>
                     <h4 className="font-bold text-primary mb-0.5">{dietGoal} Plan</h4>
@@ -953,7 +953,7 @@ export default function Nutrition() {
             {/* Glass Visual */}
             <div className="relative w-36 h-56 border-[6px] border-primary/20 rounded-b-3xl border-t-0 flex flex-col justify-end overflow-hidden mb-8 shadow-inner bg-white/30">
               <motion.div 
-                className="bg-gradient-to-t from-secondary to-primary/80 w-full rounded-b-2xl"
+                className="bg-secondary w-full rounded-b-2xl"
                 animate={{ height: `${Math.min((waterLogged / waterGoal) * 100, 100)}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
               />
@@ -973,7 +973,7 @@ export default function Nutrition() {
               </button>
               <button 
                 onClick={() => handleWaterClick(500)}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-bold hover:opacity-95 shadow-md transition-all-smooth"
+                className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-95 shadow-md transition-all-smooth"
               >
                 + 500ml
               </button>
