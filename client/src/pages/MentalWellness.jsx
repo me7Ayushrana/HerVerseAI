@@ -38,6 +38,36 @@ export default function MentalWellness() {
   const [playingTrackId, setPlayingTrackId] = useState(null);
   const [playerState, setPlayerState] = useState(-1); // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering
 
+  // Affirmation state
+  const affirmations = [
+    "I honor my body's natural phases, allowing myself to rest when needed and shine when energized.",
+    "I am worthy of peace, gentle moments, and self-compassion throughout my wellness journey.",
+    "My breath is my anchor. With every exhale, I release anxiety; with every inhale, I welcome calm.",
+    "I embrace my unique strength and give myself permission to grow at my own organic pace.",
+    "My mind is clear, my body is strong, and my spirit is resilient.",
+    "I feed my body with wholesome nutrients and feed my mind with positive, life-giving thoughts.",
+    "Every phase of my cycle is a gift of self-awareness and power. I flow with ease.",
+    "I choose to release what I cannot control and focus on breathing light into this present moment.",
+    "I surround myself with soft energies, healthy boundaries, and loving kindness.",
+    "I am building a healthy, vibrant life, one intentional breath and positive choice at a time."
+  ];
+  const [currentAffirmation, setCurrentAffirmation] = useState(() => {
+    return affirmations[Math.floor(Math.random() * affirmations.length)];
+  });
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Gratitude Jar state
+  const [gratitudes, setGratitudes] = useState(() => {
+    const saved = localStorage.getItem('herverse-gratitudes');
+    return saved ? JSON.parse(saved) : [
+      { id: 'grat-1', text: 'My morning cup of warm chamomile tea', date: new Date().toISOString() },
+      { id: 'grat-2', text: 'Having a supportive sisterhood network', date: new Date().toISOString() },
+      { id: 'grat-3', text: 'A slow gentle stretch after a busy day', date: new Date().toISOString() }
+    ];
+  });
+  const [newGratitude, setNewGratitude] = useState('');
+  const [recalledGratitude, setRecalledGratitude] = useState(null);
+
   // Breathing cycle timer effect
   useEffect(() => {
     let interval;
@@ -248,6 +278,73 @@ export default function MentalWellness() {
     }
   };
 
+  // Affirmation voice reader
+  const handleSpeakAffirmation = () => {
+    if (!('speechSynthesis' in window)) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(currentAffirmation);
+    utterance.rate = 0.85; // slow calming rate
+    utterance.pitch = 1.0;
+
+    // Try selecting female voice
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(v => 
+      v.name.toLowerCase().includes('female') || 
+      v.name.toLowerCase().includes('google us english') || 
+      v.name.toLowerCase().includes('samantha')
+    );
+    if (femaleVoice) utterance.voice = femaleVoice;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleRotateAffirmation = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    let nextIdx = Math.floor(Math.random() * affirmations.length);
+    while (affirmations[nextIdx] === currentAffirmation) {
+      nextIdx = Math.floor(Math.random() * affirmations.length);
+    }
+    setCurrentAffirmation(affirmations[nextIdx]);
+  };
+
+  // Gratitude Jar drop handler
+  const handleAddGratitude = (e) => {
+    e.preventDefault();
+    if (!newGratitude.trim()) return;
+
+    const newGrat = {
+      id: Date.now().toString(),
+      text: newGratitude.trim(),
+      date: new Date().toISOString()
+    };
+
+    const updated = [newGrat, ...gratitudes];
+    setGratitudes(updated);
+    localStorage.setItem('herverse-gratitudes', JSON.stringify(updated));
+    setNewGratitude('');
+    
+    // Play a soft text-to-speech visual drop cue or flash
+    setRecalledGratitude(newGrat);
+  };
+
+  const handleRecallGratitude = (grat) => {
+    setRecalledGratitude(grat);
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -372,7 +469,7 @@ export default function MentalWellness() {
             </AnimatePresence>
 
             {/* Playlist Track rows */}
-            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
               {tracks.map((track) => (
                 <div 
                   key={track.id}
@@ -600,7 +697,7 @@ export default function MentalWellness() {
             <h3 className="font-bold text-textMain mb-4 flex items-center gap-2">
               <Heart className="text-primary" size={20} /> Past Mind Logs
             </h3>
-            <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
               {moodLogs.map((log) => (
                 <div key={log.id} className="bg-white/95 border border-primary/15 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
                   <span className="text-3xl p-1 bg-primary/10 rounded-xl">{log.mood}</span>
@@ -621,6 +718,141 @@ export default function MentalWellness() {
               ))}
             </div>
           </div>
+        </div>
+
+      </div>
+
+      {/* Bottom Grid for Affirmations & Gratitude Jar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-2">
+        
+        {/* Card 1: Soothing Daily Affirmations (With Audio Speaker) */}
+        <div className="glass-card p-6 border-primary/20 shadow-sm flex flex-col justify-between min-h-[300px] text-left">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Moon className="text-primary" size={22} /> Mindful Affirmation
+              </h3>
+              <button 
+                onClick={handleRotateAffirmation}
+                className="px-3 py-1 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all"
+              >
+                Rotate Affirmation
+              </button>
+            </div>
+
+            <div className="bg-white/80 p-6 rounded-2xl border border-primary/10 shadow-inner flex items-center justify-center min-h-[120px]">
+              <p className="text-base md:text-lg italic font-medium leading-relaxed text-gradient text-center font-display">
+                "{currentAffirmation}"
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-primary/5 p-3.5 rounded-2xl border border-primary/10">
+            <div className="text-left">
+              <div className="text-xs font-bold text-textMain">Listen to Affirmation Voice Reader</div>
+              <div className="text-[10px] text-muted font-semibold">Uses natural, relaxing local SpeechSynthesis</div>
+            </div>
+            
+            <button 
+              onClick={handleSpeakAffirmation}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-2 ${isSpeaking ? 'bg-rose-500 text-white animate-pulse' : 'bg-primary text-white hover:opacity-95'}`}
+            >
+              {isSpeaking ? (
+                <>
+                  <VolumeX size={14} /> Stop Voice
+                </>
+              ) : (
+                <>
+                  <Volume2 size={14} /> Speak Soothingly
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Interactive 2D Gratitude Jar */}
+        <div className="glass-card p-6 border-primary/20 shadow-sm flex flex-col justify-between min-h-[300px] text-left">
+          <div className="space-y-4">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <Heart className="text-primary" size={22} /> Interactive Gratitude Jar
+            </h3>
+            
+            <p className="text-muted text-xs leading-normal">
+              Type something you are grateful for today and drop it into the jar! Click any glowing marble inside the glass jar to recall your reflections.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-6 items-center pt-2">
+              
+              {/* The CSS Glass Jar Representation */}
+              <div 
+                className="relative w-[150px] h-[190px] border-4 border-primary/30 rounded-t-[30px] rounded-b-[40px] bg-white/10 backdrop-blur-sm shadow-md flex items-center justify-center overflow-hidden flex-shrink-0"
+                style={{ boxShadow: 'inset 0 0 20px rgba(236,72,153,0.1)' }}
+              >
+                {/* Lid */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[90px] h-3.5 bg-primary/50 rounded-b-md border-b-2 border-primary/20" />
+                
+                {/* Floating Marbles representing gratitudes */}
+                <div className="absolute inset-0 pt-6 px-3">
+                  {gratitudes.map((g, idx) => (
+                    <motion.div
+                      key={g.id}
+                      initial={{ y: -120, x: 50, scale: 0 }}
+                      animate={{ 
+                        // Lay out marbles in visual rows at the bottom of the jar
+                        y: 130 - Math.floor(idx / 4) * 22 + (Math.sin(idx * 2) * 4), 
+                        x: 10 + (idx % 4) * 28 + (Math.cos(idx * 2) * 5), 
+                        scale: 1 
+                      }}
+                      whileHover={{ scale: 1.25 }}
+                      transition={{ type: 'spring', stiffness: 90, damping: 12 }}
+                      onClick={() => handleRecallGratitude(g)}
+                      className="absolute w-[22px] h-[22px] rounded-full bg-gradient-to-tr from-primary to-accent shadow-md cursor-pointer flex items-center justify-center text-[10px] hover:glow-hover select-none"
+                      title={g.text}
+                    >
+                      ✨
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Input Form & Recalled Text */}
+              <div className="flex-1 w-full flex flex-col justify-between min-h-[190px] space-y-4">
+                
+                {/* Recall alert display */}
+                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-3 min-h-[85px] flex items-center justify-center text-center">
+                  {recalledGratitude ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-textMain italic">"{recalledGratitude.text}"</p>
+                      <p className="text-[9px] text-muted font-bold">
+                        LOGGED {new Date(recalledGratitude.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted font-medium italic">Click a glowing marble inside the jar to read a past reflection...</p>
+                  )}
+                </div>
+
+                <form onSubmit={handleAddGratitude} className="flex gap-2">
+                  <input 
+                    type="text"
+                    required
+                    placeholder="I am grateful for..."
+                    value={newGratitude}
+                    onChange={e => setNewGratitude(e.target.value)}
+                    className="flex-1 bg-white border border-primary/20 rounded-xl px-3.5 py-2 text-xs text-textMain focus:outline-none focus:border-primary placeholder-muted/50"
+                  />
+                  <button 
+                    type="submit"
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white font-bold text-xs rounded-xl hover:opacity-95 shadow-sm flex items-center gap-1 shrink-0"
+                  >
+                    <Plus size={14} /> Drop
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+
         </div>
 
       </div>
