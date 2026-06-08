@@ -26,6 +26,23 @@ export default function Nutrition() {
   // Cycle phase recommendation state
   const [selectedPhase, setSelectedPhase] = useState('Luteal');
 
+  // Diet Profile selections
+  const [dietType, setDietType] = useState(() => localStorage.getItem('herverse-diet-type') || 'non-veg');
+  const [lactoseFree, setLactoseFree] = useState(() => localStorage.getItem('herverse-lactose-free') === 'true');
+  const [takingSupplements, setTakingSupplements] = useState(() => localStorage.getItem('herverse-supplements') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('herverse-diet-type', dietType);
+  }, [dietType]);
+
+  useEffect(() => {
+    localStorage.setItem('herverse-lactose-free', lactoseFree.toString());
+  }, [lactoseFree]);
+
+  useEffect(() => {
+    localStorage.setItem('herverse-supplements', takingSupplements.toString());
+  }, [takingSupplements]);
+
   useEffect(() => {
     localStorage.setItem('herverse-food-logs', JSON.stringify(foodLogs));
   }, [foodLogs]);
@@ -60,40 +77,106 @@ export default function Nutrition() {
     setWaterLogged(prev => Math.min(prev + amount, 4000));
   };
 
-  const cycleRecs = {
-    Menstrual: {
-      slogan: "Focus on replenishing iron and zinc lost during bleeding.",
-      foods: [
-        { name: "Iron Boost Salad", ingredients: "Baby Spinach, Beetroot, Mandarin Oranges, Pumpkin Seeds", reason: "Spinach & seeds supply iron; citrus Vitamin C helps iron absorption." },
-        { name: "Seared Salmon & Broccoli", ingredients: "Wild-caught Salmon, Steamed Broccoli, Quinoa", reason: "Healthy fats soothe inflammation; quinoa supplies complex proteins." }
-      ],
-      emoji: "🍲"
-    },
-    Follicular: {
-      slogan: "Incorporate light, fresh foods that support processing rising estrogen.",
-      foods: [
-        { name: "Estrogen Balance Bowl", ingredients: "Fermented Kimchi, Kefir dressing, Avocado, Sprouts, Chicken", reason: "Gut-friendly fermented ingredients support estrogen detoxification." },
-        { name: "Blossom Green Smoothie", ingredients: "Celery, Green Apples, Flaxseed, Matcha, Almond milk", reason: "Cruciferous nutrients & fiber help flush excess hormonal load." }
-      ],
-      emoji: "🥗"
-    },
-    Ovulation: {
-      slogan: "High energy phase! Prioritize antioxidant protection.",
-      foods: [
-        { name: "Vitality Fruit & Nut Plate", ingredients: "Strawberries, Walnuts, Sesame seed glaze, Cottage cheese", reason: "Antioxidants defend ovulatory cells; sesame provides zinc." },
-        { name: "Sesame Crusted Tuna", ingredients: "Ahi Tuna, Red Cabbage Slaw, Ginger sesame oil", reason: "Tuna delivers omega-3 fatty acids that optimize follicular release." }
-      ],
-      emoji: "🍣"
-    },
-    Luteal: {
-      slogan: "Reduce PMS cravings and bloating with magnesium and slow carbs.",
-      foods: [
-        { name: "Magnesium Stew & Sweet Potato", ingredients: "Roasted Sweet Potato, Kale, Chickpeas, Tahini", reason: "Slow carbs ease cravings; chickpeas provide vitamin B6." },
-        { name: "Relax Dark Chocolate Parfait", ingredients: "Greek Yogurt, Chia seeds, 85% Dark Chocolate shavings", reason: "Dark chocolate supplies magnesium to soothe uterine contractions." }
-      ],
-      emoji: "🥣"
-    }
+  const getCycleRecs = (phase) => {
+    const isVeg = dietType === 'veg';
+    const isVegan = dietType === 'vegan';
+    const isLactoseFree = lactoseFree;
+    
+    const recs = {
+      Menstrual: {
+        slogan: "Focus on replenishing iron and zinc lost during bleeding.",
+        emoji: "🍲",
+        supplements: "Iron Bisglycinate (with Vitamin C) & Magnesium Glycinate",
+        naturalNutrients: isVegan || isVeg 
+          ? "Spinach, pumpkin seeds, lentils, dark chocolate, and organic tofu."
+          : "Grass-fed beef, spinach, pumpkin seeds, lentils, and dark chocolate.",
+        foods: [
+          {
+            name: "Iron Boost Salad",
+            ingredients: "Baby Spinach, Beetroot, Mandarin Oranges, Pumpkin Seeds",
+            reason: "Spinach & seeds supply iron; citrus Vitamin C helps iron absorption."
+          },
+          {
+            name: isVegan || isVeg ? "Seared Sesame Tofu & Broccoli" : "Seared Salmon & Broccoli",
+            ingredients: isVegan || isVeg 
+              ? "Organic Tofu, Steamed Broccoli, Sesame Oil, Quinoa"
+              : "Wild-caught Salmon, Steamed Broccoli, Quinoa",
+            reason: isVegan || isVeg 
+              ? "Tofu offers plant protein and iron; sesame oil decreases cramp severity."
+              : "Salmon is rich in omega-3 healthy fats to soothe inflammation; quinoa supplies complex proteins."
+          }
+        ]
+      },
+      Follicular: {
+        slogan: "Incorporate light, fresh foods that support processing rising estrogen.",
+        emoji: "🥗",
+        supplements: "B-Complex (methylated), Vitamin D3+K2, and Probiotics",
+        naturalNutrients: isLactoseFree
+          ? "Coconut yogurt, fermented kimchi, sprouted seeds, and leafy greens."
+          : "Standard kefir, Greek yogurt, sprouted seeds, and leafy greens.",
+        foods: [
+          {
+            name: "Estrogen Balance Bowl",
+            ingredients: `${isLactoseFree ? 'Coconut-kefir' : 'Kefir'} dressing, Fermented Kimchi, Avocado, Sprouts, ${isVegan || isVeg ? 'Tempeh' : 'Grilled Chicken'}`,
+            reason: "Gut-friendly fermented ingredients support estrogen detoxification and liver processing."
+          },
+          {
+            name: "Blossom Green Smoothie",
+            ingredients: "Celery, Green Apples, Flaxseed, Matcha, Almond milk",
+            reason: "Cruciferous nutrients & flax lignans bind to excess estrogen to flush hormonal load."
+          }
+        ]
+      },
+      Ovulation: {
+        slogan: "High energy phase! Prioritize antioxidant protection and cellular defense.",
+        emoji: "🍣",
+        supplements: "Zinc Picolinate, Coenzyme Q10 (CoQ10), and Omega-3 (Algae/Fish)",
+        naturalNutrients: isVegan || isVeg
+          ? "Chia seeds, flaxseeds, walnuts, fresh berries, and sesame seeds."
+          : "Wild-caught salmon, chia seeds, walnuts, fresh berries, and sesame seeds.",
+        foods: [
+          {
+            name: "Vitality Fruit & Seed Plate",
+            ingredients: `Strawberries, Blueberries, Walnuts, Sesame seed glaze, ${isLactoseFree ? 'Almond-based cheese' : 'Cottage cheese'}`,
+            reason: "Antioxidants defend ovulatory cells; seeds provide zinc for egg quality."
+          },
+          {
+            name: isVegan || isVeg ? "Crispy Sesame Tofu Skewers" : "Sesame Crusted Tuna Steak",
+            ingredients: isVegan || isVeg
+              ? "Firm Tofu, Bell Peppers, Red Cabbage Slaw, Ginger Sesame Glaze"
+              : "Ahi Tuna, Red Cabbage Slaw, Ginger sesame oil",
+            reason: isVegan || isVeg
+              ? "Soy isoflavones support high-estrogen balance; cabbage offers liver detox."
+              : "Tuna delivers omega-3 fatty acids that optimize follicular release."
+          }
+        ]
+      },
+      Luteal: {
+        slogan: "Reduce PMS cravings and bloating with magnesium, B6, and slow carbs.",
+        emoji: "🥣",
+        supplements: "Magnesium Bisglycinate, Vitamin B6, and Evening Primrose Oil",
+        naturalNutrients: isLactoseFree
+          ? "Sweet potatoes, bananas, chickpeas, dark chocolate, and coconut-milk yogurt."
+          : "Sweet potatoes, bananas, chickpeas, dark chocolate, and Greek yogurt.",
+        foods: [
+          {
+            name: "Magnesium Stew & Sweet Potato",
+            ingredients: "Roasted Sweet Potato, Steamed Kale, Chickpeas, Tahini sauce",
+            reason: "Slow-burning complex carbs ease sweet cravings; chickpeas provide vitamin B6 to lift progesterone."
+          },
+          {
+            name: "Relax Dark Chocolate Parfait",
+            ingredients: `${isLactoseFree ? 'Coconut milk Yogurt' : 'Greek Yogurt'}, Chia seeds, 85% Dark Chocolate shavings`,
+            reason: "Dark chocolate supplies magnesium to soothe uterine contractions and ease mood swings."
+          }
+        ]
+      }
+    };
+
+    return recs[phase];
   };
+
+  const currentRecs = getCycleRecs(selectedPhase);
 
   return (
     <motion.div 
@@ -202,6 +285,75 @@ export default function Nutrition() {
             </div>
           </div>
 
+          {/* Dietary & Supplement Profile */}
+          <div className="glass-card p-6 border-primary/20 shadow-sm">
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <Award className="text-primary" size={22} /> Dietary & Supplement Profile
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Diet Type */}
+              <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                <label className="block text-xs font-bold text-muted mb-2 uppercase">Diet Type</label>
+                <div className="flex gap-1 bg-white p-1 rounded-xl border border-primary/10">
+                  {[
+                    { id: 'non-veg', label: 'Non-Veg' },
+                    { id: 'veg', label: 'Veg' },
+                    { id: 'vegan', label: 'Vegan' }
+                  ].map(d => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDietType(d.id)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all-smooth ${dietType === d.id ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-primary'}`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lactose Tolerance */}
+              <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                <label className="block text-xs font-bold text-muted mb-2 uppercase">Lactose Intake</label>
+                <div className="flex gap-1 bg-white p-1 rounded-xl border border-primary/10">
+                  {[
+                    { id: false, label: 'Standard' },
+                    { id: true, label: 'Lactose-Free' }
+                  ].map(l => (
+                    <button
+                      key={l.label}
+                      type="button"
+                      onClick={() => setLactoseFree(l.id)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all-smooth ${lactoseFree === l.id ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-primary'}`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Supplements */}
+              <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                <label className="block text-xs font-bold text-muted mb-2 uppercase">Supplements</label>
+                <div className="flex gap-1 bg-white p-1 rounded-xl border border-primary/10">
+                  {[
+                    { id: false, label: 'None' },
+                    { id: true, label: 'Taking' }
+                  ].map(s => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => setTakingSupplements(s.id)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all-smooth ${takingSupplements === s.id ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-primary'}`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Cycle Foods sync */}
           <div className="glass-card p-6 border-primary/20 shadow-sm">
             <div className="flex justify-between items-center mb-4">
@@ -223,19 +375,44 @@ export default function Nutrition() {
 
             <div className="bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 rounded-2xl p-5 flex items-start gap-4">
               <span className="text-4xl p-2 bg-white rounded-2xl shadow-sm border border-primary/10">
-                {cycleRecs[selectedPhase].emoji}
+                {currentRecs.emoji}
               </span>
-              <div>
+              <div className="flex-1">
                 <h4 className="font-bold text-primary mb-1">{selectedPhase} Phase Nutrition</h4>
-                <p className="text-xs text-muted mb-4 font-semibold">{cycleRecs[selectedPhase].slogan}</p>
+                <p className="text-xs text-muted mb-4 font-semibold">{currentRecs.slogan}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {cycleRecs[selectedPhase].foods.map((food, idx) => (
+                  {currentRecs.foods.map((food, idx) => (
                     <div key={idx} className="bg-white/90 border border-primary/10 rounded-xl p-3 shadow-inner">
                       <p className="text-sm font-bold text-textMain mb-1">{food.name}</p>
                       <p className="text-xs text-muted font-bold mb-1">Key ingredients: {food.ingredients}</p>
                       <p className="text-xs text-primary leading-snug">{food.reason}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* Supplement / Natural Nutrients Section */}
+                <div className="mt-5 pt-4 border-t border-primary/10">
+                  {takingSupplements ? (
+                    <div className="bg-white/80 border border-primary/15 rounded-xl p-4 flex items-center gap-3">
+                      <div className="p-2 bg-secondary/10 text-secondary rounded-lg">
+                        <Award size={20} className="animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-secondary uppercase">Recommended Cycle Supplements</p>
+                        <p className="text-sm font-semibold text-textMain">{currentRecs.supplements}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white/80 border border-primary/15 rounded-xl p-4 flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                        <Apple size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-primary uppercase">Natural Nutrient Sources</p>
+                        <p className="text-sm font-semibold text-textMain">{currentRecs.naturalNutrients}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
