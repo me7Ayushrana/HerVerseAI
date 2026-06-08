@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { aiTipsDatabase } from '../utils/aiTips';
+import { getBestAvailableModelAndUrl } from '../utils/gemini';
 
 export default function Dashboard() {
   const user = useAuthStore(state => state.user);
@@ -36,8 +37,10 @@ export default function Dashboard() {
     }
 
     try {
+      const { url: geminiUrl } = await getBestAvailableModelAndUrl(geminiApiKey);
+
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+        geminiUrl,
         {
           method: 'POST',
           headers: {

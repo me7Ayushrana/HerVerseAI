@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Mic, Settings, AlertTriangle, Sparkles, Check, Server } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { getBestAvailableModelAndUrl } from '../utils/gemini';
 
 export default function Chatbot() {
   const [messages, setMessages] = useState([
@@ -99,8 +100,10 @@ IMPORTANT RULES:
           });
         }
 
+        const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
+
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`,
+          geminiUrl,
           {
             method: 'POST',
             headers: {
