@@ -10,10 +10,18 @@ export default function Nutrition() {
   const [calories, setCalories] = useState('');
   const [foodLogs, setFoodLogs] = useState(() => {
     const saved = localStorage.getItem('herverse-food-logs');
-    return saved ? JSON.parse(saved) : [
+    let logs = saved ? JSON.parse(saved) : [
       { id: '1', category: 'Breakfast', name: 'Avocado Toast with Egg', kcal: 320 },
       { id: '2', category: 'Lunch', name: 'Mediterranean Chickpea Salad', kcal: 480 }
     ];
+    // Force migrate legacy non-veg items from existing local storage logs
+    logs = logs.map(log => {
+      if (log.name === 'Grilled Chicken Quinoa Salad') {
+        return { ...log, name: 'Mediterranean Chickpea Salad', kcal: 480 };
+      }
+      return log;
+    });
+    return logs;
   });
 
   // Water tracking states
@@ -26,8 +34,16 @@ export default function Nutrition() {
   // Cycle phase recommendation state
   const [selectedPhase, setSelectedPhase] = useState('Luteal');
 
-  // Diet Profile selections
-  const [dietType, setDietType] = useState(() => localStorage.getItem('herverse-diet-type') || 'veg');
+  // Diet Profile selections (forces 'veg' once for legacy users)
+  const [dietType, setDietType] = useState(() => {
+    const version = localStorage.getItem('herverse-diet-v2');
+    if (!version) {
+      localStorage.setItem('herverse-diet-v2', 'true');
+      localStorage.setItem('herverse-diet-type', 'veg');
+      return 'veg';
+    }
+    return localStorage.getItem('herverse-diet-type') || 'veg';
+  });
   const [lactoseFree, setLactoseFree] = useState(() => localStorage.getItem('herverse-lactose-free') === 'true');
   const [takingSupplements, setTakingSupplements] = useState(() => localStorage.getItem('herverse-supplements') === 'true');
   const [dietGoal, setDietGoal] = useState(() => localStorage.getItem('herverse-diet-goal') || 'Hormone Balance');
