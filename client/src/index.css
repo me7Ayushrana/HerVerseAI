@@ -144,3 +144,67 @@ input:focus, select:focus, textarea:focus {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(236, 72, 153, 0.6);
 }
+
+/* ==========================================
+   🌸 DARK MODE STYLING & VARIABLE OVERRIDES
+   ========================================== */
+html.dark {
+  --color-primary: #F472B6;      /* Lighter rose pink for high contrast in dark mode */
+  --color-secondary: #EC4899;    /* Deep rose pink */
+  --color-accent: #C084FC;       /* Vibrant purple/lavender */
+  --color-bg-dark: #110412;      /* Deep dark plum/black berry background */
+  --color-bg-card: rgba(28, 12, 30, 0.7); /* Deep dark berry frosted card background */
+  --color-text: #FDE8E9;         /* Very soft rosy-white high-contrast text */
+  --color-muted: #A78BFA;        /* Lighter lavender/dusty mauve for subtexts */
+}
+
+/* Background image for dark mode body */
+html.dark body {
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(45, 10, 48, 0.6) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(30, 10, 48, 0.6) 0%, transparent 50%);
+}
+
+/* Global utility overrides to map white backgrounds in Tailwind to dark mode colors */
+html.dark .bg-white {
+  background-color: var(--color-bg-dark) !important;
+  color: var(--color-text) !important;
+}
+html.dark .bg-white\/95 {
+  background-color: rgba(28, 12, 30, 0.95) !important;
+  color: var(--color-text) !important;
+}
+html.dark .bg-white\/90 {
+  background-color: rgba(28, 12, 30, 0.90) !important;
+  color: var(--color-text) !important;
+}
+html.dark .bg-white\/80 {
+  background-color: rgba(28, 12, 30, 0.80) !important;
+  color: var(--color-text) !important;
+}
+html.dark .bg-white\/30 {
+  background-color: rgba(28, 12, 30, 0.30) !important;
+}
+html.dark .bg-primary\/5 {
+  background-color: rgba(244, 114, 182, 0.08) !important;
+}
+
+/* Dark mode inputs adjustments */
+html.dark input, html.dark select, html.dark textarea {
+  background-color: rgba(20, 5, 22, 0.85) !important;
+  border-color: rgba(244, 114, 182, 0.25) !important;
+  color: var(--color-text) !important;
+}
+html.dark input::placeholder, html.dark textarea::placeholder {
+  color: var(--color-muted) !important;
+  opacity: 0.5;
+}
+html.dark input:focus, html.dark select:focus, html.dark textarea:focus {
+  background-color: rgba(28, 8, 30, 0.95) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* Scrollbar dark mode settings */
+html.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg-dark);
+}

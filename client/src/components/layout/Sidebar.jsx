@@ -20,7 +20,9 @@ import {
   LogOut,
   Menu,
   X,
-  Settings
+  Settings,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -46,6 +48,29 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
+
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('herverse-dark-mode') === 'true';
+    if (saved) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    return saved;
+  });
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('herverse-dark-mode', next.toString());
+      if (next) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return next;
+    });
+  };
 
   return (
     <>
@@ -115,6 +140,13 @@ export default function Sidebar() {
               Hi, {user.name} {user.isAdmin && '(Admin)'}
             </div>
           )}
+          <button 
+            onClick={toggleDarkMode}
+            className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-muted hover:text-primary hover:bg-primary/10 rounded-soft transition-all-smooth hover:translate-x-1 text-sm font-medium mb-1"
+          >
+            {darkMode ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+            <span className="font-sans">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
           <button 
             onClick={logout}
             className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-muted hover:text-red-500 hover:bg-red-500/10 rounded-soft transition-all-smooth hover:translate-x-1 text-sm font-medium"
