@@ -29,6 +29,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/ml', require('./routes/ml'));
+app.use('/api/nutrition', require('./routes/nutrition'));
+
 
 
 // Database connection

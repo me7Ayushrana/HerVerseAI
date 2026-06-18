@@ -1,0 +1,47 @@
+[
+  {
+    "id": "prof-m431euvj7",
+    "_id": "prof-m431euvj7",
+    "userId": "usr-default-123",
+    "age": 25,
+    "weightKg": 60,
+    "heightCm": 160,
+    "bmi": 23.4,
+    "goal": "weight_gain",
+    "targetWeightKg": null,
+    "timelineWeeks": null,
+    "activityLevel": "moderately_active",
+    "exerciseDaysPerWeek": 3,
+    "exerciseTypes": [],
+    "dietType": "veg",
+    "cuisinePreferences": [],
+    "mealFrequency": 5,
+    "cookingTime": "moderate",
+    "allergies": [],
+    "intolerances": [],
+    "avoidFoods": [],
+    "preferredFoods": [],
+    "healthConditions": [],
+    "wakeTime": "07:00",
+    "sleepTime": "23:00",
+    "waterLiters": 2.5,
+    "stressLevel": "moderate",
+    "createdAt": "2026-06-18T07:50:59.869Z",
+    "updatedAt": "2026-06-18T08:35:56.606Z",
+    "supplements": {
+      "proteinPowder": {
+        "active": true,
+        "name": "MyFitness Peanut Butter Whey",
+        "proteinPer100g": 26,
+        "carbsPer100g": 12,
+        "fatPer100g": 3,
+        "gramsPerDay": 30,
+        "timing": "Post-workout"
+      },
+      "others": [
+        "Iron tablets",
+        "Vitamin D"
+      ]
+    }
+  }
+]
