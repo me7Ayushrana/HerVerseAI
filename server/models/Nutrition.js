@@ -78,28 +78,45 @@ const RealDietPlan = mongoose.model('DietPlan', dietPlanSchema);
 // ==========================================
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[MockDB] Could not create local data directory (likely read-only environment):', err.message);
 }
 
+// Global in-memory cache fallback for stateless serverless environments (Vercel)
+const inMemoryCache = {
+  'nutrition_profiles.json': [],
+  'diet_plans.json': []
+};
+
 const getJSONData = (file) => {
+  if (inMemoryCache[file] && inMemoryCache[file].length > 0) {
+    return inMemoryCache[file];
+  }
+  
   const filePath = path.join(DATA_DIR, file);
   if (!fs.existsSync(filePath)) return [];
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    inMemoryCache[file] = parsed;
+    return parsed;
   } catch (err) {
     console.error(`Error reading mock file ${file}:`, err.message);
-    return [];
+    return inMemoryCache[file] || [];
   }
 };
 
 const saveJSONData = (file, data) => {
+  inMemoryCache[file] = data;
   const filePath = path.join(DATA_DIR, file);
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
-    console.error(`Error writing mock file ${file}:`, err.message);
+    console.warn(`[MockDB] Filesystem write failed for ${file} (likely read-only serverless environment). Using in-memory fallback:`, err.message);
   }
 };
 

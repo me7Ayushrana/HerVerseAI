@@ -411,11 +411,11 @@ function generateMockPlan(profile, cyclePhase, targetCalories, macros, cycleData
 
 
 // @route   POST /api/nutrition/generate-plan
-// @desc    Generate a complete 7-day plan using Claude or Mock fallback
+// @desc    Generate a complete 7-day plan using Gemini, Claude, or Mock fallback
 // @access  Public (proxied with userId)
 router.post('/generate-plan', async (req, res) => {
   try {
-    const { userId, cyclePhase } = req.body;
+    const { userId, cyclePhase, clientApiKey } = req.body;
     if (!userId) {
       return res.status(400).json({ message: 'Missing userId parameter' });
     }
@@ -455,7 +455,114 @@ router.post('/generate-plan', async (req, res) => {
     // 4. Disable previous plans
     await DietPlan.updateMany({ userId, isActive: true }, { isActive: false });
 
-    // 5. Check if Anthropic API is active
+    // 5. Check if Gemini API is active
+    const geminiApiKey = clientApiKey || process.env.GEMINI_API_KEY;
+    if (geminiApiKey && geminiApiKey !== 'your_gemini_api_key_here') {
+      try {
+        console.log('[Gemini] Key detected. Fetching USDA food references in parallel...');
+        
+        // Fetch USDA references for common foods based on diet type
+        const commonFoods = ['spinach', 'rolled oats', 'moong dal', 'greek yogurt', 'paneer', 'tofu', 'chickpeas', 'almonds'];
+        const foodDataPromises = commonFoods.map(food => getNutritionData(food));
+        const foodDataResults = await Promise.all(foodDataPromises);
+        
+        const usdaFoodData = {};
+        foodDataResults.forEach((data, index) => {
+          if (data) {
+            usdaFoodData[commonFoods[index]] = data;
+          }
+        });
+
+        const prompt = buildDietPrompt({
+          profile,
+          cyclePhase: activePhase,
+          targetCalories,
+          macros,
+          cycleData,
+          conditionOverrides,
+          usdaFoodData
+        });
+
+        console.log('[Gemini] Sending prompt to Gemini API...');
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({ 
+          model: 'gemini-1.5-flash',
+          generationConfig: { 
+            responseMimeType: "application/json" 
+          }
+        });
+
+        const result = await model.generateContent(prompt);
+        const responseText = (await result.response).text();
+        
+        // Parse and sanitize JSON
+        const cleanJSONText = responseText.substring(
+          responseText.indexOf('{'),
+          responseText.lastIndexOf('}') + 1
+        );
+        const parsedPlan = JSON.parse(cleanJSONText);
+
+        const sanitizeMealTime = (raw) => {
+          if (!raw || typeof raw !== 'string') return raw;
+          return raw
+            .replace(/(\d+)\.5:00/g, (_, h) => `${h}:30`)
+            .replace(/(\d+)\.0:00/g, (_, h) => `${h}:00`)
+            .replace(/(\d+)\.25:00/g, (_, h) => `${h}:15`)
+            .replace(/(\d+)\.75:00/g, (_, h) => `${h}:45`);
+        };
+
+        if (parsedPlan.days && parsedPlan.days.length > 0) {
+          for (const day of parsedPlan.days) {
+            if (day.meals && day.meals.length > 0) {
+              for (const meal of day.meals) {
+                if (meal.scheduledTime) {
+                  meal.scheduledTime = sanitizeMealTime(meal.scheduledTime);
+                }
+                if (meal.items && meal.items.length > 0) {
+                  const queryStr = meal.items.map(item => `${item.quantity} ${item.unit || ''} ${item.name}`).join(' + ');
+                  const verificationResult = await verifyMealMacros(queryStr);
+                  if (verificationResult && verificationResult.verified) {
+                    console.log(`[Nutritionix] Verified macros for meal: "${meal.displayName}"`);
+                    meal.totalCalories = Math.round(verificationResult.calories);
+                    meal.totalProtein = Number(verificationResult.protein.toFixed(1));
+                    meal.totalCarb = Number(verificationResult.carbs.toFixed(1));
+                    meal.totalFat = Number(verificationResult.fat.toFixed(1));
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Add additional required fields
+        const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+        const weekLabel = `Week of ${new Date().toLocaleDateString('en-US', dateOptions)}`;
+
+        const newPlan = await DietPlan.create({
+          userId,
+          nutritionProfileId: profile.id || profile._id,
+          cyclePhase: activePhase,
+          weekLabel,
+          targetCalories: parsedPlan.planSummary?.targetCalories || targetCalories,
+          proteinG: parsedPlan.planSummary?.proteinG || macros.proteinG,
+          carbG: parsedPlan.planSummary?.carbG || macros.carbG,
+          fatG: parsedPlan.planSummary?.fatG || macros.fatG,
+          keyFocusNote: parsedPlan.planSummary?.keyFocusNote || `Prioritize cycle-specific micro-nutrients.`,
+          cycleBenefitNote: parsedPlan.planSummary?.cycleBenefitNote || cycleData.phaseNote,
+          days: parsedPlan.days,
+          isActive: true
+        });
+
+        console.log('[Gemini] Diet plan successfully generated and saved!');
+        return res.status(200).json({ success: true, planId: newPlan.id || newPlan._id, plan: newPlan });
+
+      } catch (geminiError) {
+        console.error('[Gemini] Generation failed, falling back to Claude or mock:', geminiError);
+      }
+    }
+
+    // 6. Check if Anthropic API is active (secondary fallback)
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (anthropicKey && anthropicKey !== 'your_key') {
       try {
@@ -558,7 +665,7 @@ router.post('/generate-plan', async (req, res) => {
       }
     }
 
-    // 6. Running Mock Generation Fallback
+    // 7. Running Mock Generation Fallback
     console.log('[NutritionAPI] Running offline mock plan generator fallback...');
     const mockData = generateMockPlan(profile, activePhase, targetCalories, macros, cycleData);
     const newMockPlan = await DietPlan.create(mockData);
@@ -575,7 +682,7 @@ router.post('/generate-plan', async (req, res) => {
 // @access  Public
 router.post('/regenerate-meal', async (req, res) => {
   try {
-    const { mealId } = req.body;
+    const { mealId, clientApiKey } = req.body;
     if (!mealId) {
       return res.status(400).json({ message: 'Missing mealId parameter' });
     }
@@ -609,7 +716,111 @@ router.post('/regenerate-meal', async (req, res) => {
       return res.status(404).json({ message: 'Nutrition profile not found.' });
     }
 
-    // 2. Check if Claude is active
+    // 2. Check if Gemini is active
+    const geminiApiKey = clientApiKey || process.env.GEMINI_API_KEY;
+    if (geminiApiKey && geminiApiKey !== 'your_gemini_api_key_here') {
+      try {
+        const allergies = profile.allergies && profile.allergies.length > 0 ? profile.allergies.join(', ') : "None";
+        const avoidFoods = profile.avoidFoods && profile.avoidFoods.length > 0 ? profile.avoidFoods.join(', ') : "None";
+        const healthConditions = profile.healthConditions && profile.healthConditions.length > 0 ? profile.healthConditions.join(', ') : "None";
+
+        const prompt = `Suggest ONE alternative ${targetMeal.mealType} meal for a ${profile.goal} ${profile.dietType} woman in ${activePlan.cyclePhase} phase. 
+        Calorie target: ${targetMeal.totalCalories}kcal.
+        Must avoid allergies: ${allergies}. Foods to avoid: ${avoidFoods}.
+        Health conditions to respect: ${healthConditions}.
+        The current meal is "${targetMeal.displayName}" — suggest something completely different and culturally resonant for Indian diets.
+        Return ONLY valid JSON matching this structure exactly, no extra text, no markdown:
+        {
+          "displayName": string,
+          "items": [
+            {
+              "name": string,
+              "quantity": string,
+              "unit": string,
+              "caloriesKcal": number,
+              "proteinG": number,
+              "carbG": number,
+              "fatG": number
+            }
+          ],
+          "totalCalories": number,
+          "totalProtein": number,
+          "totalCarb": number,
+          "totalFat": number,
+          "prepMinutes": number,
+          "recipeSteps": string[],
+          "benefitNote": string
+        }`;
+
+        console.log('[Gemini] Requesting single meal regeneration...');
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({ 
+          model: 'gemini-1.5-flash',
+          generationConfig: { 
+            responseMimeType: "application/json" 
+          }
+        });
+        
+        const result = await model.generateContent(prompt);
+        const responseText = (await result.response).text();
+        const cleanJSONText = responseText.substring(
+          responseText.indexOf('{'),
+          responseText.lastIndexOf('}') + 1
+        );
+        const regeneratedData = JSON.parse(cleanJSONText);
+
+        if (regeneratedData.items && regeneratedData.items.length > 0) {
+          const queryStr = regeneratedData.items.map(item => `${item.quantity} ${item.unit || ''} ${item.name}`).join(' + ');
+          const verificationResult = await verifyMealMacros(queryStr);
+          if (verificationResult && verificationResult.verified) {
+            console.log(`[Nutritionix] Verified swapped meal macros: "${regeneratedData.displayName}"`);
+            regeneratedData.totalCalories = Math.round(verificationResult.calories);
+            regeneratedData.totalProtein = Number(verificationResult.protein.toFixed(1));
+            regeneratedData.totalCarb = Number(verificationResult.carbs.toFixed(1));
+            regeneratedData.totalFat = Number(verificationResult.fat.toFixed(1));
+          }
+        }
+
+        // Update the meal in the plan object
+        const updatedDays = activePlan.days.map(day => {
+          if (day.id === targetDay.id || day._id === targetDay._id) {
+            const updatedMeals = day.meals.map(m => {
+              if (m.id === mealId || m._id === mealId || m._id?.toString() === mealId) {
+                return {
+                  ...m,
+                  ...regeneratedData,
+                  id: mealId,
+                  isRegenerated: true
+                };
+              }
+              return m;
+            });
+            return { ...day, meals: updatedMeals };
+          }
+          return day;
+        });
+
+        activePlan.days = updatedDays;
+        if (typeof activePlan.save === 'function') {
+          await activePlan.save();
+        } else {
+          await DietPlan.updateMany({ _id: activePlan.id || activePlan._id }, activePlan);
+        }
+
+        const returnedMeal = {
+          ...targetMeal.toObject ? targetMeal.toObject() : targetMeal,
+          ...regeneratedData,
+          isRegenerated: true
+        };
+
+        return res.status(200).json({ success: true, meal: returnedMeal });
+      } catch (err) {
+        console.error('[Gemini] Single meal swap failed, falling back to Claude or mock:', err);
+      }
+    }
+
+    // 3. Check if Claude is active (secondary fallback)
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (anthropicKey && anthropicKey !== 'your_key') {
       try {

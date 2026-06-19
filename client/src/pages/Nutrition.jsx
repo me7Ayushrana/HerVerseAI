@@ -19,7 +19,10 @@ export default function Nutrition() {
   const [activeTab, setActiveTab] = useState('tracker');
   
   // AI Plan states
-  const [activePlan, setActivePlan] = useState(null);
+  const [activePlan, setActivePlan] = useState(() => {
+    const saved = localStorage.getItem('herverse-cached-diet-plan');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -69,6 +72,7 @@ export default function Nutrition() {
           const data = await response.json();
           if (data.success && data.plan) {
             setActivePlan(data.plan);
+            localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(data.plan));
             setActiveTab('plan');
           }
         }
@@ -148,10 +152,11 @@ export default function Nutrition() {
       setLoadingMessage('Compiling meal recommendations using smart references...');
       
       // 2. Generate plan
+      const clientApiKey = localStorage.getItem('herverse-gemini-key') || '';
       const genResponse = await fetch('/api/nutrition/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, cyclePhase })
+        body: JSON.stringify({ userId, cyclePhase, clientApiKey })
       });
 
       if (!genResponse.ok) {
@@ -161,6 +166,7 @@ export default function Nutrition() {
       const genData = await genResponse.json();
       if (genData.success && genData.plan) {
         setActivePlan(genData.plan);
+        localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(genData.plan));
         setIsOnboardingOpen(false);
         setActiveTab('plan');
       } else {
@@ -176,10 +182,11 @@ export default function Nutrition() {
 
   const handleSwapMeal = async (mealId) => {
     try {
+      const clientApiKey = localStorage.getItem('herverse-gemini-key') || '';
       const response = await fetch('/api/nutrition/regenerate-meal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mealId })
+        body: JSON.stringify({ mealId, clientApiKey })
       });
 
       if (!response.ok) {
@@ -199,10 +206,13 @@ export default function Nutrition() {
           return { ...day, meals: updatedMeals };
         });
 
-        setActivePlan(prev => ({
-          ...prev,
+        const newPlan = {
+          ...activePlan,
           days: updatedDays
-        }));
+        };
+
+        setActivePlan(newPlan);
+        localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(newPlan));
       }
     } catch (err) {
       console.error('Swap meal error:', err);
@@ -212,6 +222,7 @@ export default function Nutrition() {
 
   const handleResetPlan = () => {
     setActivePlan(null);
+    localStorage.removeItem('herverse-cached-diet-plan');
     setIsOnboardingOpen(true);
     setActiveTab('plan');
   };
