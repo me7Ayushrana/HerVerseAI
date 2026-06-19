@@ -4,6 +4,74 @@ import { Send, Bot, User, Mic, Settings, AlertTriangle, Sparkles, Check, Server 
 import { useAuthStore } from '../store/authStore';
 import { getBestAvailableModelAndUrl } from '../utils/gemini';
 
+// Helper to parse bold text (**text**)
+function parseInlineMarkdown(text) {
+  if (!text) return "";
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, partIdx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      return <strong key={partIdx} className="font-extrabold text-primary">{boldText}</strong>;
+    }
+    return part;
+  });
+}
+
+// Helper to parse basic markdown elements (headers, lists)
+function renderMarkdown(text) {
+  if (!text) return "";
+  const lines = text.split('\n');
+
+  return lines.map((line, lineIdx) => {
+    // Check if the line is a header (###, ##, #)
+    const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const content = parseInlineMarkdown(headerMatch[2]);
+      const headerClasses = level === 1 ? "text-xl font-bold mb-2 mt-3 block" :
+                            level === 2 ? "text-lg font-bold mb-1.5 mt-2 block" :
+                            "text-base font-bold mb-1 mt-1 block";
+      return <span key={lineIdx} className={headerClasses}>{content}</span>;
+    }
+
+    // Check if the line is a bullet list (*, -)
+    const bulletMatch = line.match(/^[\*\-]\s+(.*)$/);
+    if (bulletMatch) {
+      const content = parseInlineMarkdown(bulletMatch[1]);
+      return (
+        <span key={lineIdx} className="flex gap-2 items-start pl-2 my-1 text-left w-full">
+          <span className="text-primary font-bold">•</span>
+          <span>{content}</span>
+        </span>
+      );
+    }
+
+    // Check if the line is a numbered list (1., 2.)
+    const numberMatch = line.match(/^(\d+)\.\s+(.*)$/);
+    if (numberMatch) {
+      const num = numberMatch[1];
+      const content = parseInlineMarkdown(numberMatch[2]);
+      return (
+        <span key={lineIdx} className="flex gap-2 items-start pl-2 my-1 text-left w-full">
+          <span className="text-primary font-bold">{num}.</span>
+          <span>{content}</span>
+        </span>
+      );
+    }
+
+    // Default: regular line of text (parse bold inline)
+    if (line.trim() === '') {
+      return <span key={lineIdx} className="block h-2" />;
+    }
+
+    return (
+      <span key={lineIdx} className="block mb-1 text-left w-full">
+        {parseInlineMarkdown(line)}
+      </span>
+    );
+  });
+}
+
 export default function Chatbot() {
   const [messages, setMessages] = useState([
     { role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }
@@ -381,7 +449,9 @@ IMPORTANT RULES:
                   ? 'bg-gradient-to-r from-primary to-secondary text-white rounded-tr-none shadow-md font-medium' 
                   : 'bg-white/90 border border-primary/10 text-textMain rounded-tl-none'
               }`}>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                <div className="text-sm leading-relaxed space-y-1">
+                  {renderMarkdown(msg.text)}
+                </div>
               </div>
             </div>
           ))}
