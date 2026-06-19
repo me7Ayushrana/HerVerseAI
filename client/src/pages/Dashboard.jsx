@@ -57,12 +57,12 @@ export default function Dashboard() {
                 {
                   role: 'user',
                   parts: [{ 
-                    text: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.` 
+                    text: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Do not use any greetings, salutations, or preambles (do not say "Dear Gurnoor" or "Gurnoor"). State the tip directly. Keep it very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.` 
                   }]
                 }
               ],
               systemInstruction: {
-                parts: [{ text: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not stop mid-sentence or output conversational chatter." }]
+                parts: [{ text: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not use greetings, salutations, or preambles. Do not address the user by name. State the tip directly. Do not stop mid-sentence." }]
               },
               generationConfig: {
                 maxOutputTokens: 150,
@@ -95,11 +95,14 @@ export default function Dashboard() {
         }
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
+        const candidate = data.candidates?.[0];
+        const finishReason = candidate?.finishReason;
+        const text = candidate?.content?.parts?.[0]?.text;
+
+        if (text && (finishReason === 'STOP' || !finishReason)) {
           cleanTip = text.trim();
         } else {
-          throw new Error("Empty candidates returned from Gemini direct API");
+          throw new Error(`Gemini direct API response was incomplete or blocked. Finish reason: ${finishReason}`);
         }
       } else {
         console.log('[Dashboard] Client API key missing, proxying to backend /api/chat...');
@@ -109,9 +112,9 @@ export default function Dashboard() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health. Return only the tip without any preambles.`,
+            message: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Do not use any greetings, salutations, or preambles (do not say "Dear Gurnoor" or "Gurnoor"). State the tip directly. Keep it very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.`,
             history: [],
-            systemInstruction: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not stop mid-sentence or output conversational chatter."
+            systemInstruction: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not use greetings, salutations, or preambles. Do not address the user by name. State the tip directly. Do not stop mid-sentence."
           })
         });
 
@@ -250,9 +253,9 @@ export default function Dashboard() {
                 <RotateCw size={16} className={isGeneratingTip ? "animate-spin" : ""} />
               </button>
             </div>
-            <div className="bg-white/90 p-4 rounded-xl border border-primary/15 shadow-inner min-h-[100px] flex flex-col items-start justify-center">
+            <div className="bg-white/90 p-4 rounded-xl border border-primary/15 shadow-inner h-[120px] overflow-y-auto custom-scrollbar flex flex-col items-start justify-start">
               {isGeneratingTip ? (
-                <div className="flex gap-1.5 items-center self-center">
+                <div className="flex gap-1.5 items-center self-center my-auto">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />

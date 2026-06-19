@@ -82,6 +82,11 @@ async function sendMessageWithFallback(message, history, apiKey, systemInstructi
           });
           const result = await chat.sendMessage(message);
           const response = await result.response;
+          const candidate = response.candidates?.[0];
+          const finishReason = candidate?.finishReason;
+          if (finishReason && finishReason !== 'STOP') {
+            throw new Error(`Candidate blocked or cut off mid-generation. Finish reason: ${finishReason}`);
+          }
           const text = response.text();
           if (text) {
             console.log(`[Gemini Proxy] Success with model: ${modelName}`);
