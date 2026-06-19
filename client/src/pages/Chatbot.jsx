@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Mic, Settings, AlertTriangle, Sparkles, Check, Server } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,8 @@ export default function Chatbot() {
   const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('herverse-gemini-key') || '');
   const [showSettings, setShowSettings] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   const handleSaveKey = (e) => {
     e.preventDefault();
@@ -27,6 +29,46 @@ export default function Chatbot() {
   const handleToggleMode = (newMode) => {
     setMode(newMode);
     localStorage.setItem('herverse-chat-mode', newMode);
+  };
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice recognition is not supported in this browser. Please try Chrome or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const hasApiKey = !!(customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY);
@@ -365,7 +407,16 @@ IMPORTANT RULES:
             className="w-full bg-white border border-primary/25 rounded-full pl-6 pr-24 py-4 text-textMain focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm shadow-inner placeholder-muted/50"
           />
           <div className="absolute right-2 flex gap-2">
-            <button type="button" className="p-2 rounded-full text-muted hover:text-primary hover:bg-primary/5 transition-colors">
+            <button 
+              type="button" 
+              onClick={handleVoiceInput}
+              className={`p-2 rounded-full transition-all duration-300 ${
+                isListening 
+                  ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse shadow-md' 
+                  : 'text-muted hover:text-primary hover:bg-primary/5'
+              }`}
+              title={isListening ? "Listening... Click to stop" : "Start voice input"}
+            >
               <Mic size={20} />
             </button>
             <button type="submit" className="p-2 rounded-full bg-primary text-white hover:opacity-95 shadow active:scale-95 transition-all-smooth">
