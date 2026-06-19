@@ -1785,7 +1785,88 @@ export default function Nutrition() {
 
                 {/* PDF Download Button */}
                 <div className="flex justify-end pr-4">
-                  <DownloadPlanButton targetId="nutrition-plan-pdf" filename={`herverse-diet-${activePlan.cyclePhase}-plan.pdf`} />
+                  <DownloadPlanButton targetId="full-week-pdf-export" filename={`herverse-diet-${activePlan.cyclePhase}-weekly-plan.pdf`} />
+                </div>
+
+                {/* Off-screen container for full-week PDF export */}
+                <div 
+                  id="full-week-pdf-export" 
+                  className="absolute -left-[9999px] top-0 w-[800px] bg-white text-slate-800 p-8 rounded-3xl space-y-8 font-sans"
+                >
+                  {/* Brand header */}
+                  <div className="flex justify-between items-end border-b-2 border-pink-100 pb-6">
+                    <div>
+                      <h1 className="text-3xl font-bold text-pink-600">HerVerse AI</h1>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Personalized Cycle-Synced Wellness</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold bg-pink-50 text-pink-700 border border-pink-100 px-4 py-1.5 rounded-full uppercase tracking-wider">
+                        {activePlan.cyclePhase} Phase Plan
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Summary statistics bar */}
+                  <div className="grid grid-cols-4 gap-4 text-center bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{activePlan.targetCalories}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Daily kcal</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-pink-600">{activePlan.proteinG}g</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Protein</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-700">{activePlan.carbG}g</p>
+                      <p className="text-[10px] font-bold text-slate-400 tracking-wider">Carbs</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-700">{activePlan.fatG}g</p>
+                      <p className="text-[10px] font-bold text-slate-400 tracking-wider">Fats</p>
+                    </div>
+                  </div>
+
+                  {/* Focus notes */}
+                  <div className="bg-pink-50/50 p-5 rounded-2xl border border-pink-100/50 space-y-1">
+                    <h4 className="text-xs font-bold text-pink-700 uppercase tracking-wider">Phase Focus & Guidance</h4>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                      {activePlan.cycleBenefitNote || activePlan.keyFocusNote}
+                    </p>
+                  </div>
+
+                  {/* 7 Days detailed plan list */}
+                  <div className="space-y-6">
+                    {activePlan.days.map((day) => (
+                      <div key={day.dayNumber} className="border border-slate-100 rounded-2xl p-6 bg-white shadow-sm space-y-4">
+                        <h3 className="text-lg font-bold text-pink-700 border-b border-pink-100 pb-2">{day.dayLabel}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {day.meals.map((meal, mIdx) => (
+                            <div key={mIdx} className="bg-slate-50/70 p-4 rounded-xl border border-slate-100 space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-pink-600 uppercase tracking-wider">{meal.displayName}</span>
+                                <span className="text-xs text-slate-400 font-bold bg-white px-2 py-0.5 rounded border border-slate-100">{meal.scheduledTime}</span>
+                              </div>
+                              <ul className="text-xs space-y-1.5 pl-4 list-disc text-slate-600 font-medium">
+                                {meal.items.map((item, itemIdx) => (
+                                  <li key={itemIdx}>
+                                    <strong>{item.name}</strong> - {item.quantity} {item.unit} ({item.caloriesKcal} kcal)
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="text-[10px] font-medium text-slate-400 italic leading-relaxed pt-1 border-t border-slate-200/50">
+                                💡 {meal.benefitNote}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="text-center pt-8 border-t border-slate-100 text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                    Generated dynamically by HerVerse AI • Empowering Women's Wellness
+                  </div>
                 </div>
               </div>
             ) : (

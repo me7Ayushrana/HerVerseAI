@@ -29,7 +29,7 @@ export default function DownloadPlanButton({ targetId = 'nutrition-plan-pdf', fi
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: document.documentElement.classList.contains('dark') ? '#110412' : '#FFF5F7',
+        backgroundColor: null,
         logging: false
       });
 
