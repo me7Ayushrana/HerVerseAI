@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldAlert, CheckCircle2, ClipboardList, HelpCircle, Save, Sparkles, RefreshCw } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 export default function PCOSManager() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   // Screener state
   const [screenerStep, setScreenerStep] = useState(0); // 0 = start, 1 = Q1, 2 = Q2, 3 = Q3, 4 = Q4, 5 = Q5, 6 = result
   const [answers, setAnswers] = useState({});
@@ -10,7 +15,7 @@ export default function PCOSManager() {
 
   // Habits state
   const [habits, setHabits] = useState(() => {
-    const saved = localStorage.getItem('herverse-pcos-habits');
+    const saved = localStorage.getItem(`herverse-${userId}-pcos-habits`);
     return saved ? JSON.parse(saved) : {
       lowGI: false,
       resistance: false,
@@ -22,7 +27,7 @@ export default function PCOSManager() {
 
   // Symptom logger state
   const [symptoms, setSymptoms] = useState(() => {
-    const saved = localStorage.getItem('herverse-pcos-symptoms');
+    const saved = localStorage.getItem(`herverse-${userId}-pcos-symptoms`);
     return saved ? JSON.parse(saved) : [
       { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), fatigue: 'Medium', acne: 'High', bloating: 'Low' }
     ];
@@ -32,13 +37,41 @@ export default function PCOSManager() {
   const [acne, setAcne] = useState('Low');
   const [bloating, setBloating] = useState('Low');
 
+  // Reload user data when userId changes
   useEffect(() => {
-    localStorage.setItem('herverse-pcos-habits', JSON.stringify(habits));
-  }, [habits]);
+    setIsLoaded(false);
+    const savedHabits = localStorage.getItem(`herverse-${userId}-pcos-habits`);
+    setHabits(savedHabits ? JSON.parse(savedHabits) : {
+      lowGI: false,
+      resistance: false,
+      spearmint: false,
+      cortisol: false,
+      sleep8: false
+    });
+
+    const savedSymptoms = localStorage.getItem(`herverse-${userId}-pcos-symptoms`);
+    if (savedSymptoms) {
+      setSymptoms(JSON.parse(savedSymptoms));
+    } else {
+      setSymptoms([
+        { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), fatigue: 'Medium', acne: 'High', bloating: 'Low' }
+      ]);
+    }
+    setIsLoaded(true);
+  }, [userId]);
+
+  // Sync state changes with local storage
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-pcos-habits`, JSON.stringify(habits));
+    }
+  }, [habits, userId, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('herverse-pcos-symptoms', JSON.stringify(symptoms));
-  }, [symptoms]);
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-pcos-symptoms`, JSON.stringify(symptoms));
+    }
+  }, [symptoms, userId, isLoaded]);
 
   const questions = [
     {

@@ -1,35 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Sparkles, PhoneCall, ShieldCheck, Check, Key, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export default function Settings() {
   const currentUser = useAuthStore(state => state.user);
+  const userId = currentUser?.id || currentUser?._id || 'mock-user-123';
   
   // State for API Keys
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('herverse-gemini-key') || '');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
   const [isApiSaved, setIsApiSaved] = useState(false);
 
   // State for Emergency Contact
-  const [sosName, setSosName] = useState(() => localStorage.getItem('herverse-emergency-name') || 'Sarah Doe');
-  const [sosPhone, setSosPhone] = useState(() => localStorage.getItem('herverse-emergency-phone') || '+1 (555) 911-3040');
-  const [sosEmail, setSosEmail] = useState(() => localStorage.getItem('herverse-emergency-email') || 'contact@example.com');
+  const [sosName, setSosName] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-name`) || 'Sarah Doe');
+  const [sosPhone, setSosPhone] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-phone`) || '+1 (555) 911-3040');
+  const [sosEmail, setSosEmail] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-email`) || 'contact@example.com');
   const [isSosSaved, setIsSosSaved] = useState(false);
+
+  // Sync settings state when currentUser changes
+  useEffect(() => {
+    setApiKey(localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
+    setSosName(localStorage.getItem(`herverse-${userId}-emergency-name`) || 'Sarah Doe');
+    setSosPhone(localStorage.getItem(`herverse-${userId}-emergency-phone`) || '+1 (555) 911-3040');
+    setSosEmail(localStorage.getItem(`herverse-${userId}-emergency-email`) || 'contact@example.com');
+  }, [userId]);
 
   const handleSaveApi = (e) => {
     e.preventDefault();
     const cleanKey = apiKey.trim();
     setApiKey(cleanKey);
-    localStorage.setItem('herverse-gemini-key', cleanKey);
+    localStorage.setItem(`herverse-${userId}-gemini-key`, cleanKey);
     setIsApiSaved(true);
     setTimeout(() => setIsApiSaved(false), 2000);
   };
 
   const handleSaveSos = (e) => {
     e.preventDefault();
-    localStorage.setItem('herverse-emergency-name', sosName);
-    localStorage.setItem('herverse-emergency-phone', sosPhone);
-    localStorage.setItem('herverse-emergency-email', sosEmail);
+    localStorage.setItem(`herverse-${userId}-emergency-name`, sosName);
+    localStorage.setItem(`herverse-${userId}-emergency-phone`, sosPhone);
+    localStorage.setItem(`herverse-${userId}-emergency-email`, sosEmail);
     setIsSosSaved(true);
     setTimeout(() => setIsSosSaved(false), 2000);
   };

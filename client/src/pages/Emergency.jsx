@@ -1,22 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneCall, ShieldAlert, HeartHandshake, Save, BellRing, MapPin, X, HelpCircle } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 export default function Emergency() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [sosActive, setSosActive] = useState(false);
   const [activeDirectory, setActiveDirectory] = useState('medical'); // medical, mental, crisis
 
   // Contact configurations
-  const [contactName, setContactName] = useState(() => localStorage.getItem('herverse-emergency-name') || 'Sarah Doe');
-  const [contactPhone, setContactPhone] = useState(() => localStorage.getItem('herverse-emergency-phone') || '+1 (555) 911-3040');
-  const [contactEmail, setContactEmail] = useState(() => localStorage.getItem('herverse-emergency-email') || 'contact@example.com');
+  const [contactName, setContactName] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-name`) || 'Sarah Doe');
+  const [contactPhone, setContactPhone] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-phone`) || '+1 (555) 911-3040');
+  const [contactEmail, setContactEmail] = useState(() => localStorage.getItem(`herverse-${userId}-emergency-email`) || 'contact@example.com');
   const [isSaved, setIsSaved] = useState(false);
+
+  // Sync state when userId changes
+  useEffect(() => {
+    setIsLoaded(false);
+    setContactName(localStorage.getItem(`herverse-${userId}-emergency-name`) || 'Sarah Doe');
+    setContactPhone(localStorage.getItem(`herverse-${userId}-emergency-phone`) || '+1 (555) 911-3040');
+    setContactEmail(localStorage.getItem(`herverse-${userId}-emergency-email`) || 'contact@example.com');
+    setIsLoaded(true);
+  }, [userId]);
 
   const handleSaveContact = (e) => {
     e.preventDefault();
-    localStorage.setItem('herverse-emergency-name', contactName);
-    localStorage.setItem('herverse-emergency-phone', contactPhone);
-    localStorage.setItem('herverse-emergency-email', contactEmail);
+    localStorage.setItem(`herverse-${userId}-emergency-name`, contactName);
+    localStorage.setItem(`herverse-${userId}-emergency-phone`, contactPhone);
+    localStorage.setItem(`herverse-${userId}-emergency-email`, contactEmail);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };

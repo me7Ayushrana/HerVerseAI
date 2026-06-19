@@ -73,30 +73,42 @@ function renderMarkdown(text) {
 }
 
 export default function Chatbot() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [messages, setMessages] = useState([
     { role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState(() => localStorage.getItem('herverse-chat-mode') || 'ai'); // 'ai' or 'local'
-  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('herverse-gemini-key') || '');
+  const [mode, setMode] = useState(() => localStorage.getItem(`herverse-${userId}-chat-mode`) || 'ai'); // 'ai' or 'local'
+  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
   const [showSettings, setShowSettings] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
+  // Sync state when userId changes
+  useEffect(() => {
+    setIsLoaded(false);
+    setMode(localStorage.getItem(`herverse-${userId}-chat-mode`) || 'ai');
+    setCustomApiKey(localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
+    setIsLoaded(true);
+  }, [userId]);
+
   const handleSaveKey = (e) => {
     e.preventDefault();
     const cleanKey = customApiKey.trim();
     setCustomApiKey(cleanKey);
-    localStorage.setItem('herverse-gemini-key', cleanKey);
+    localStorage.setItem(`herverse-${userId}-gemini-key`, cleanKey);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
 
   const handleToggleMode = (newMode) => {
     setMode(newMode);
-    localStorage.setItem('herverse-chat-mode', newMode);
+    localStorage.setItem(`herverse-${userId}-chat-mode`, newMode);
   };
 
   const handleVoiceInput = () => {

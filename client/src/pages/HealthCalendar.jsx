@@ -1,23 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHealthStore } from '../store/healthStore';
+import { useAuthStore } from '../store/authStore';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, parseISO, isValid } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight, Save, Plus, MessageSquare } from 'lucide-react';
 
 export default function HealthCalendar() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const { periodLogs } = useHealthStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [noteText, setNoteText] = useState('');
   const [dailyLogs, setDailyLogs] = useState(() => {
-    const saved = localStorage.getItem('herverse-calendar-notes');
+    const saved = localStorage.getItem(`herverse-${userId}-calendar-notes`);
     return saved ? JSON.parse(saved) : {};
   });
 
+  // Reload user data when userId changes
   useEffect(() => {
-    localStorage.setItem('herverse-calendar-notes', JSON.stringify(dailyLogs));
-  }, [dailyLogs]);
+    setIsLoaded(false);
+    const savedNotes = localStorage.getItem(`herverse-${userId}-calendar-notes`);
+    setDailyLogs(savedNotes ? JSON.parse(savedNotes) : {});
+    setIsLoaded(true);
+  }, [userId]);
+
+  // Sync state changes with local storage
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-calendar-notes`, JSON.stringify(dailyLogs));
+    }
+  }, [dailyLogs, userId, isLoaded]);
 
   // Calendar math
   const monthStart = startOfMonth(currentDate);

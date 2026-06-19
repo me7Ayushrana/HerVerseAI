@@ -170,18 +170,54 @@ class MockUser {
   }
 }
 
-// Export wrapper that switches dynamically based on MongoDB connection state
-const exportUser = new Proxy(RealUser, {
-  get(target, prop, receiver) {
-    const isConnected = mongoose.connection.readyState === 1;
-    if (!isConnected) {
-      console.log(`[Database] MongoDB not connected. Falling back to MockUser for property: ${prop}`);
-      if (Reflect.has(MockUser, prop)) {
-        return Reflect.get(MockUser, prop, receiver);
+const makeModelProxy = (RealModel, MockModel) => {
+  return new Proxy(RealModel, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+
+      if (typeof value === 'function') {
+        return async function(...args) {
+          const isConnected = mongoose.connection.readyState === 1;
+          if (isConnected) {
+            try {
+              const res = await value.apply(target, args);
+              if (res && typeof res.save === 'function') {
+                const originalSave = res.save;
+                res.save = async function(...saveArgs) {
+                  try {
+                    return await originalSave.apply(res, saveArgs);
+                  } catch (saveError) {
+                    console.warn(`[MockDB] Mongoose document save failed. Falling back to Mock:`, saveError.message);
+                    if (typeof MockModel.findById === 'function') {
+                      const mockDoc = await MockModel.findById(res.id || res._id);
+                      if (mockDoc) {
+                        Object.assign(mockDoc, res.toObject ? res.toObject() : res);
+                        return await mockDoc.save();
+                      }
+                    }
+                    return res;
+                  }
+                };
+              }
+              return res;
+            } catch (err) {
+              console.warn(`[MockDB] Mongoose operation "${prop}" failed. Falling back to Mock:`, err.message);
+            }
+          }
+          if (Reflect.has(MockModel, prop)) {
+            const mockMethod = Reflect.get(MockModel, prop);
+            if (typeof mockMethod === 'function') {
+              return mockMethod.apply(MockModel, args);
+            }
+          }
+          return undefined;
+        };
       }
+      return value;
     }
-    return Reflect.get(target, prop, receiver);
-  }
-});
+  });
+};
+
+const exportUser = makeModelProxy(RealUser, MockUser);
 
 module.exports = exportUser;

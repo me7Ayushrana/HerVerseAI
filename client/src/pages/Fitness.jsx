@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Dumbbell, Flame, CheckCircle, Plus, Calendar, Save, Trash2 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 export default function Fitness() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [selectedCategory, setSelectedCategory] = useState('Follicular');
   const [completedExercises, setCompletedExercises] = useState({});
   const [streak, setStreak] = useState(() => {
-    const saved = localStorage.getItem('herverse-fitness-streak');
+    const saved = localStorage.getItem(`herverse-${userId}-fitness-streak`);
     return saved ? Number(saved) : 3;
   });
 
@@ -14,20 +19,43 @@ export default function Fitness() {
   const [customDuration, setCustomDuration] = useState('');
   const [customNotes, setCustomNotes] = useState('');
   const [workoutLogs, setWorkoutLogs] = useState(() => {
-    const saved = localStorage.getItem('herverse-workout-logs');
+    const saved = localStorage.getItem(`herverse-${userId}-workout-logs`);
     return saved ? JSON.parse(saved) : [
       { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), type: 'Steady State Pilates', duration: 35, category: 'Luteal' },
       { id: '2', date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), type: 'Bodyweight HIIT Circuit', duration: 25, category: 'Ovulation' }
     ];
   });
 
+  // Reload user data when userId changes
   useEffect(() => {
-    localStorage.setItem('herverse-workout-logs', JSON.stringify(workoutLogs));
-  }, [workoutLogs]);
+    setIsLoaded(false);
+    const savedStreak = localStorage.getItem(`herverse-${userId}-fitness-streak`);
+    setStreak(savedStreak ? Number(savedStreak) : 3);
+
+    const savedLogs = localStorage.getItem(`herverse-${userId}-workout-logs`);
+    if (savedLogs) {
+      setWorkoutLogs(JSON.parse(savedLogs));
+    } else {
+      setWorkoutLogs([
+        { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), type: 'Steady State Pilates', duration: 35, category: 'Luteal' },
+        { id: '2', date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), type: 'Bodyweight HIIT Circuit', duration: 25, category: 'Ovulation' }
+      ]);
+    }
+    setIsLoaded(true);
+  }, [userId]);
+
+  // Sync state changes with local storage
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-workout-logs`, JSON.stringify(workoutLogs));
+    }
+  }, [workoutLogs, userId, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('herverse-fitness-streak', streak.toString());
-  }, [streak]);
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-fitness-streak`, streak.toString());
+    }
+  }, [streak, userId, isLoaded]);
 
   const routines = {
     Menstrual: {

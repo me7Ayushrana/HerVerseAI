@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Brain, Volume2, VolumeX, Play, Pause, Save, Heart, Sparkles, Moon, Plus, Trash2, Edit3, Check, X, Music, Loader2 } from 'lucide-react';
 import { classifySentiment } from '../utils/sentimentClassifier';
+import { useAuthStore } from '../store/authStore';
 
 export default function MentalWellness() {
+  const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
+  const [isLoaded, setIsLoaded] = useState(false);
+
   // Breathing visualizer states
   const [breathingState, setBreathingState] = useState('Idle'); // Idle, Inhale, Hold, Exhale
   const [breathCount, setBreathCount] = useState(0);
@@ -14,7 +19,7 @@ export default function MentalWellness() {
   const [mood, setMood] = useState('😌');
   const [notes, setNotes] = useState('');
   const [moodLogs, setMoodLogs] = useState(() => {
-    const saved = localStorage.getItem('herverse-mood-logs');
+    const saved = localStorage.getItem(`herverse-${userId}-mood-logs`);
     return saved ? JSON.parse(saved) : [
       { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), mood: '😌', notes: 'Had a quiet and productive yoga session.' },
       { id: '2', date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), mood: '😇', notes: 'Felt very energized today!' }
@@ -23,7 +28,7 @@ export default function MentalWellness() {
 
   // YouTube player and tracks state
   const [tracks, setTracks] = useState(() => {
-    const saved = localStorage.getItem('herverse-custom-tracks');
+    const saved = localStorage.getItem(`herverse-${userId}-custom-tracks`);
     return saved ? JSON.parse(saved) : [
       { id: 'default-1', name: 'Relaxing Zen Soundscape (Pre-Added)', url: 'https://youtu.be/D1f2dSi7kG4?si=k9cMfhtvzsqBME4o', videoId: 'D1f2dSi7kG4' }
     ];
@@ -58,7 +63,7 @@ export default function MentalWellness() {
 
   // Gratitude Jar state
   const [gratitudes, setGratitudes] = useState(() => {
-    const saved = localStorage.getItem('herverse-gratitudes');
+    const saved = localStorage.getItem(`herverse-${userId}-gratitudes`);
     return saved ? JSON.parse(saved) : [
       { id: 'grat-1', text: 'My morning cup of warm chamomile tea', date: new Date().toISOString() },
       { id: 'grat-2', text: 'Having a supportive sisterhood network', date: new Date().toISOString() },
@@ -67,6 +72,60 @@ export default function MentalWellness() {
   });
   const [newGratitude, setNewGratitude] = useState('');
   const [recalledGratitude, setRecalledGratitude] = useState(null);
+
+  // Reload user data when userId changes
+  useEffect(() => {
+    setIsLoaded(false);
+    const savedMood = localStorage.getItem(`herverse-${userId}-mood-logs`);
+    if (savedMood) {
+      setMoodLogs(JSON.parse(savedMood));
+    } else {
+      setMoodLogs([
+        { id: '1', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), mood: '😌', notes: 'Had a quiet and productive yoga session.' },
+        { id: '2', date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), mood: '😇', notes: 'Felt very energized today!' }
+      ]);
+    }
+
+    const savedTracks = localStorage.getItem(`herverse-${userId}-custom-tracks`);
+    if (savedTracks) {
+      setTracks(JSON.parse(savedTracks));
+    } else {
+      setTracks([
+        { id: 'default-1', name: 'Relaxing Zen Soundscape (Pre-Added)', url: 'https://youtu.be/D1f2dSi7kG4?si=k9cMfhtvzsqBME4o', videoId: 'D1f2dSi7kG4' }
+      ]);
+    }
+
+    const savedGratitudes = localStorage.getItem(`herverse-${userId}-gratitudes`);
+    if (savedGratitudes) {
+      setGratitudes(JSON.parse(savedGratitudes));
+    } else {
+      setGratitudes([
+        { id: 'grat-1', text: 'My morning cup of warm chamomile tea', date: new Date().toISOString() },
+        { id: 'grat-2', text: 'Having a supportive sisterhood network', date: new Date().toISOString() },
+        { id: 'grat-3', text: 'A slow gentle stretch after a busy day', date: new Date().toISOString() }
+      ]);
+    }
+    setIsLoaded(true);
+  }, [userId]);
+
+  // Sync state changes with local storage
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-mood-logs`, JSON.stringify(moodLogs));
+    }
+  }, [moodLogs, userId, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-custom-tracks`, JSON.stringify(tracks));
+    }
+  }, [tracks, userId, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-gratitudes`, JSON.stringify(gratitudes));
+    }
+  }, [gratitudes, userId, isLoaded]);
 
   // Breathing cycle timer effect
   useEffect(() => {
@@ -123,7 +182,7 @@ export default function MentalWellness() {
     
     const updated = [newLog, ...moodLogs];
     setMoodLogs(updated);
-    localStorage.setItem('herverse-mood-logs', JSON.stringify(updated));
+    localStorage.setItem(`herverse-${userId}-mood-logs`, JSON.stringify(updated));
     setLatestAnalysis(analysis);
     setNotes('');
   };
@@ -156,7 +215,7 @@ export default function MentalWellness() {
 
   const saveTracks = (newTracks) => {
     setTracks(newTracks);
-    localStorage.setItem('herverse-custom-tracks', JSON.stringify(newTracks));
+    localStorage.setItem(`herverse-${userId}-custom-tracks`, JSON.stringify(newTracks));
   };
 
   const extractVideoId = (url) => {
@@ -334,7 +393,7 @@ export default function MentalWellness() {
 
     const updated = [newGrat, ...gratitudes];
     setGratitudes(updated);
-    localStorage.setItem('herverse-gratitudes', JSON.stringify(updated));
+    localStorage.setItem(`herverse-${userId}-gratitudes`, JSON.stringify(updated));
     setNewGratitude('');
     
     // Play a soft text-to-speech visual drop cue or flash

@@ -20,13 +20,14 @@ export default function Nutrition() {
   
   // AI Plan states
   const [activePlan, setActivePlan] = useState(() => {
-    const saved = localStorage.getItem('herverse-cached-diet-plan');
+    const saved = localStorage.getItem(`herverse-${userId}-cached-diet-plan`);
     return saved ? JSON.parse(saved) : null;
   });
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [activeDayNumber, setActiveDayNumber] = useState(1);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Dark Mode state (synced with localStorage & document.documentElement)
   const [darkMode, setDarkMode] = useState(() => {
@@ -39,7 +40,7 @@ export default function Nutrition() {
   const [foodName, setFoodName] = useState('');
   const [calories, setCalories] = useState('');
   const [foodLogs, setFoodLogs] = useState(() => {
-    const saved = localStorage.getItem('herverse-food-logs');
+    const saved = localStorage.getItem(`herverse-${userId}-food-logs`);
     let logs = saved ? JSON.parse(saved) : [
       { id: '1', category: 'Breakfast', name: 'Avocado Toast with Egg', kcal: 320 },
       { id: '2', category: 'Lunch', name: 'Mediterranean Chickpea Salad', kcal: 480 }
@@ -57,11 +58,34 @@ export default function Nutrition() {
   // Water tracking states (original states preserved)
   const waterGoal = 2500; // in ml
   const [waterLogged, setWaterLogged] = useState(() => {
-    const saved = localStorage.getItem('herverse-water-logged');
+    const saved = localStorage.getItem(`herverse-${userId}-water-logged`);
     return saved ? Number(saved) : 1000;
   });
 
-  // Fetch active plan on load
+  // Load user-specific data from local storage when userId changes
+  useEffect(() => {
+    setIsLoaded(false);
+    
+    const savedPlan = localStorage.getItem(`herverse-${userId}-cached-diet-plan`);
+    setActivePlan(savedPlan ? JSON.parse(savedPlan) : null);
+
+    const savedFood = localStorage.getItem(`herverse-${userId}-food-logs`);
+    if (savedFood) {
+      setFoodLogs(JSON.parse(savedFood));
+    } else {
+      setFoodLogs([
+        { id: '1', category: 'Breakfast', name: 'Avocado Toast with Egg', kcal: 320 },
+        { id: '2', category: 'Lunch', name: 'Mediterranean Chickpea Salad', kcal: 480 }
+      ]);
+    }
+
+    const savedWater = localStorage.getItem(`herverse-${userId}-water-logged`);
+    setWaterLogged(savedWater ? Number(savedWater) : 1000);
+    
+    setIsLoaded(true);
+  }, [userId]);
+
+  // Fetch active plan on load if not cached or is empty on backend
   useEffect(() => {
     const fetchActivePlan = async () => {
       setIsLoading(true);
@@ -72,7 +96,7 @@ export default function Nutrition() {
           const data = await response.json();
           if (data.success && data.plan) {
             setActivePlan(data.plan);
-            localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(data.plan));
+            localStorage.setItem(`herverse-${userId}-cached-diet-plan`, JSON.stringify(data.plan));
             setActiveTab('plan');
           }
         }
@@ -83,17 +107,23 @@ export default function Nutrition() {
       }
     };
 
-    fetchActivePlan();
+    if (userId) {
+      fetchActivePlan();
+    }
   }, [userId]);
 
   // Sync state changes with local storage
   useEffect(() => {
-    localStorage.setItem('herverse-food-logs', JSON.stringify(foodLogs));
-  }, [foodLogs]);
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-food-logs`, JSON.stringify(foodLogs));
+    }
+  }, [foodLogs, userId, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('herverse-water-logged', waterLogged.toString());
-  }, [waterLogged]);
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-water-logged`, waterLogged.toString());
+    }
+  }, [waterLogged, userId, isLoaded]);
 
   const totalCalories = foodLogs.reduce((sum, log) => sum + log.kcal, 0);
 
@@ -152,7 +182,7 @@ export default function Nutrition() {
       setLoadingMessage('Compiling meal recommendations using smart references...');
       
       // 2. Generate plan
-      const clientApiKey = localStorage.getItem('herverse-gemini-key') || '';
+      const clientApiKey = localStorage.getItem(`herverse-${userId}-gemini-key`) || '';
       const genResponse = await fetch('/api/nutrition/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,7 +196,7 @@ export default function Nutrition() {
       const genData = await genResponse.json();
       if (genData.success && genData.plan) {
         setActivePlan(genData.plan);
-        localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(genData.plan));
+        localStorage.setItem(`herverse-${userId}-cached-diet-plan`, JSON.stringify(genData.plan));
         setIsOnboardingOpen(false);
         setActiveTab('plan');
       } else {
@@ -182,7 +212,7 @@ export default function Nutrition() {
 
   const handleSwapMeal = async (mealId) => {
     try {
-      const clientApiKey = localStorage.getItem('herverse-gemini-key') || '';
+      const clientApiKey = localStorage.getItem(`herverse-${userId}-gemini-key`) || '';
       const response = await fetch('/api/nutrition/regenerate-meal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,7 +242,7 @@ export default function Nutrition() {
         };
 
         setActivePlan(newPlan);
-        localStorage.setItem('herverse-cached-diet-plan', JSON.stringify(newPlan));
+        localStorage.setItem(`herverse-${userId}-cached-diet-plan`, JSON.stringify(newPlan));
       }
     } catch (err) {
       console.error('Swap meal error:', err);
@@ -222,7 +252,7 @@ export default function Nutrition() {
 
   const handleResetPlan = () => {
     setActivePlan(null);
-    localStorage.removeItem('herverse-cached-diet-plan');
+    localStorage.removeItem(`herverse-${userId}-cached-diet-plan`);
     setIsOnboardingOpen(true);
     setActiveTab('plan');
   };

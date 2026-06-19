@@ -252,29 +252,57 @@ class MockDietPlan {
 }
 
 // Proxied exports
-const NutritionProfile = new Proxy(RealNutritionProfile, {
-  get(target, prop, receiver) {
-    const isConnected = mongoose.connection.readyState === 1;
-    if (!isConnected) {
-      if (Reflect.has(MockNutritionProfile, prop)) {
-        return Reflect.get(MockNutritionProfile, prop, receiver);
-      }
-    }
-    return Reflect.get(target, prop, receiver);
-  }
-});
+const makeModelProxy = (RealModel, MockModel) => {
+  return new Proxy(RealModel, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
 
-const DietPlan = new Proxy(RealDietPlan, {
-  get(target, prop, receiver) {
-    const isConnected = mongoose.connection.readyState === 1;
-    if (!isConnected) {
-      if (Reflect.has(MockDietPlan, prop)) {
-        return Reflect.get(MockDietPlan, prop, receiver);
+      if (typeof value === 'function') {
+        return async function(...args) {
+          const isConnected = mongoose.connection.readyState === 1;
+          if (isConnected) {
+            try {
+              const res = await value.apply(target, args);
+              if (res && typeof res.save === 'function') {
+                const originalSave = res.save;
+                res.save = async function(...saveArgs) {
+                  try {
+                    return await originalSave.apply(res, saveArgs);
+                  } catch (saveError) {
+                    console.warn(`[MockDB] Mongoose document save failed. Falling back to Mock:`, saveError.message);
+                    if (typeof MockModel.findOne === 'function') {
+                      const lookupId = res.userId || args[0]?.userId || res.id || res._id;
+                      const mockDoc = await MockModel.findOne({ userId: lookupId });
+                      if (mockDoc) {
+                        Object.assign(mockDoc, res.toObject ? res.toObject() : res);
+                        return await mockDoc.save();
+                      }
+                    }
+                    return res;
+                  }
+                };
+              }
+              return res;
+            } catch (err) {
+              console.warn(`[MockDB] Mongoose operation "${prop}" failed. Falling back to Mock:`, err.message);
+            }
+          }
+          if (Reflect.has(MockModel, prop)) {
+            const mockMethod = Reflect.get(MockModel, prop);
+            if (typeof mockMethod === 'function') {
+              return mockMethod.apply(MockModel, args);
+            }
+          }
+          return undefined;
+        };
       }
+      return value;
     }
-    return Reflect.get(target, prop, receiver);
-  }
-});
+  });
+};
+
+const NutritionProfile = makeModelProxy(RealNutritionProfile, MockNutritionProfile);
+const DietPlan = makeModelProxy(RealDietPlan, MockDietPlan);
 
 module.exports = {
   NutritionProfile,
