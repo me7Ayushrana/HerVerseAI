@@ -17,7 +17,7 @@ IMPORTANT RULES:
 const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
 // Helper for model fallback and retry logic
-async function sendMessageWithFallback(message, history, apiKey) {
+async function sendMessageWithFallback(message, history, apiKey, systemInstructionOverride) {
   const genAI = new GoogleGenerativeAI(apiKey);
   let lastError = null;
 
@@ -26,7 +26,25 @@ async function sendMessageWithFallback(message, history, apiKey) {
       console.log(`[Gemini Proxy] Attempting chat using model: ${modelName}`);
       const model = genAI.getGenerativeModel({ 
         model: modelName,
-        systemInstruction: SYSTEM_PROMPT
+        systemInstruction: systemInstructionOverride || SYSTEM_PROMPT,
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_NONE"
+          }
+        ]
       });
 
       // Format history so it strictly alternates and starts with 'user'
@@ -99,7 +117,7 @@ async function sendMessageWithFallback(message, history, apiKey) {
 // @access  Public (Rate-limited, CORS protected)
 router.post('/', async (req, res) => {
   try {
-    const { message, history } = req.body;
+    const { message, history, systemInstruction } = req.body;
 
     if (!message) {
       return res.status(400).json({ message: 'Message is required' });
@@ -111,7 +129,7 @@ router.post('/', async (req, res) => {
       return res.status(503).json({ message: 'Gemini API key is not configured on the server.' });
     }
 
-    const reply = await sendMessageWithFallback(message, history, apiKey);
+    const reply = await sendMessageWithFallback(message, history, apiKey, systemInstruction);
     res.json({ reply });
   } catch (error) {
     console.error('Chat API Error:', error);

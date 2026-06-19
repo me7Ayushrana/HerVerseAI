@@ -3,11 +3,24 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Droplet, Smile, Moon, Calendar, 
-  MessageSquareHeart, Bell, ChevronRight, Sparkles 
+  MessageSquareHeart, Bell, ChevronRight, Sparkles, RotateCw 
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { aiTipsDatabase } from '../utils/aiTips';
 import { getBestAvailableModelAndUrl } from '../utils/gemini';
+
+// Helper to parse bold text (**text**)
+function parseInlineMarkdown(text) {
+  if (!text) return "";
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, partIdx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      return <strong key={partIdx} className="font-extrabold text-primary">{boldText}</strong>;
+    }
+    return part;
+  });
+}
 
 export default function Dashboard() {
   const user = useAuthStore(state => state.user);
@@ -54,7 +67,25 @@ export default function Dashboard() {
               generationConfig: {
                 maxOutputTokens: 150,
                 temperature: 0.7
-              }
+              },
+              safetySettings: [
+                {
+                  category: "HARM_CATEGORY_HARASSMENT",
+                  threshold: "BLOCK_NONE"
+                },
+                {
+                  category: "HARM_CATEGORY_HATE_SPEECH",
+                  threshold: "BLOCK_NONE"
+                },
+                {
+                  category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                  threshold: "BLOCK_NONE"
+                },
+                {
+                  category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                  threshold: "BLOCK_NONE"
+                }
+              ]
             })
           }
         );
@@ -79,7 +110,8 @@ export default function Dashboard() {
           },
           body: JSON.stringify({
             message: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health. Return only the tip without any preambles.`,
-            history: []
+            history: [],
+            systemInstruction: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not stop mid-sentence or output conversational chatter."
           })
         });
 
@@ -103,8 +135,15 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Error generating AI tip, falling back to local database:", err);
-      // Pick a random tip from our database
-      const nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
+      // Pick a random tip from our database, ensuring it's different from current one
+      let nextTip = aiTip;
+      if (aiTipsDatabase.length > 1) {
+        while (nextTip === aiTip) {
+          nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
+        }
+      } else if (aiTipsDatabase.length === 1) {
+        nextTip = aiTipsDatabase[0];
+      }
       setAiTip(nextTip);
       localStorage.setItem('herverse-cached-ai-tip', nextTip);
     } finally {
@@ -208,19 +247,19 @@ export default function Dashboard() {
                 className="p-1.5 rounded-full hover:bg-primary/10 text-primary transition-all duration-300 active:scale-95 disabled:opacity-50"
                 title="Generate New Tip"
               >
-                <Sparkles size={16} className={isGeneratingTip ? "animate-spin" : ""} />
+                <RotateCw size={16} className={isGeneratingTip ? "animate-spin" : ""} />
               </button>
             </div>
-            <div className="bg-white/90 p-4 rounded-xl border border-primary/15 shadow-inner min-h-[100px] flex items-center justify-center">
+            <div className="bg-white/90 p-4 rounded-xl border border-primary/15 shadow-inner min-h-[100px] flex flex-col items-start justify-center">
               {isGeneratingTip ? (
-                <div className="flex gap-1.5 items-center">
+                <div className="flex gap-1.5 items-center self-center">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed text-textMain text-left w-full font-medium">
-                  {aiTip}
+                  {parseInlineMarkdown(aiTip)}
                 </p>
               )}
             </div>
