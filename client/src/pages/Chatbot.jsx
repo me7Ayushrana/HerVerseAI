@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Mic, Settings, AlertTriangle, Sparkles, Check, Server } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -82,8 +82,15 @@ export default function Chatbot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState(() => localStorage.getItem(`herverse-${userId}-chat-mode`) || 'ai'); // 'ai' or 'local'
-  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
+  const [customApiKey, setCustomApiKey] = useState(() => {
+    return localStorage.getItem(`herverse-${userId}-gemini-key`) || localStorage.getItem('herverse-gemini-key') || '';
+  });
+  const [mode, setMode] = useState(() => {
+    const saved = localStorage.getItem(`herverse-${userId}-chat-mode`);
+    if (saved) return saved;
+    const hasKey = !!(localStorage.getItem(`herverse-${userId}-gemini-key`) || localStorage.getItem('herverse-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY);
+    return hasKey ? 'ai' : 'local';
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -92,8 +99,11 @@ export default function Chatbot() {
   // Sync state when userId changes
   useEffect(() => {
     setIsLoaded(false);
-    setMode(localStorage.getItem(`herverse-${userId}-chat-mode`) || 'ai');
-    setCustomApiKey(localStorage.getItem(`herverse-${userId}-gemini-key`) || '');
+    const key = localStorage.getItem(`herverse-${userId}-gemini-key`) || localStorage.getItem('herverse-gemini-key') || '';
+    setCustomApiKey(key);
+    const savedMode = localStorage.getItem(`herverse-${userId}-chat-mode`);
+    const hasKey = !!(key || import.meta.env.VITE_GEMINI_API_KEY);
+    setMode(savedMode || (hasKey ? 'ai' : 'local'));
     setIsLoaded(true);
   }, [userId]);
 
@@ -103,6 +113,10 @@ export default function Chatbot() {
     setCustomApiKey(cleanKey);
     localStorage.setItem(`herverse-${userId}-gemini-key`, cleanKey);
     setIsSaved(true);
+    if (cleanKey) {
+      setMode('ai');
+      localStorage.setItem(`herverse-${userId}-chat-mode`, 'ai');
+    }
     setTimeout(() => setIsSaved(false), 2000);
   };
 
@@ -151,7 +165,11 @@ export default function Chatbot() {
     recognition.start();
   };
 
-  const hasApiKey = !!(customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY);
+  const hasApiKey = !!(
+    customApiKey.trim() || 
+    localStorage.getItem('herverse-gemini-key') || 
+    import.meta.env.VITE_GEMINI_API_KEY
+  );
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -165,9 +183,9 @@ export default function Chatbot() {
     setInput('');
     setIsLoading(true);
     
-    const activeKey = customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY || '';
+    const activeKey = customApiKey.trim() || localStorage.getItem('herverse-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
     
-    if (mode === 'ai') {
+    if (mode === 'ai' && activeKey) {
       try {
         const SYSTEM_PROMPT = `
 You are HerVerse AI, a compassionate, knowledgeable, and professional women's health and wellness assistant.
@@ -211,70 +229,42 @@ IMPORTANT RULES:
 
         let reply = "";
 
-        if (activeKey) {
-          console.log('[Chatbot] Calling Google Gemini API directly...');
-          const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
+        console.log('[Chatbot] Calling Google Gemini API directly...');
+        const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
 
-          const response = await fetch(
-            geminiUrl,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: {
-                  parts: [{ text: SYSTEM_PROMPT }]
-                },
-                generationConfig: {
-                  maxOutputTokens: 1000,
-                }
-              })
-            }
-          );
-
-          if (!response.ok) {
-            let errMsg = `Status ${response.status}`;
-            try {
-              const errData = await response.json();
-              if (errData.error?.message) {
-                errMsg = errData.error.message;
-              }
-            } catch (_) {}
-            throw new Error(errMsg);
-          }
-
-          const data = await response.json();
-          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
-        } else {
-          console.log('[Chatbot] Client API key missing, proxying to backend /api/chat...');
-          const response = await fetch('/api/chat', {
+        const response = await fetch(
+          geminiUrl,
+          {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              message: userText,
-              history: messages
-            })
-          });
-
-          if (!response.ok) {
-            let errMsg = `Status ${response.status}`;
-            try {
-              const errData = await response.json();
-              if (errData.message) {
-                errMsg = errData.message;
+              contents,
+              systemInstruction: {
+                parts: [{ text: SYSTEM_PROMPT }]
+              },
+              generationConfig: {
+                maxOutputTokens: 1000,
               }
-            } catch (_) {}
-            throw new Error(errMsg);
+            })
           }
+        );
 
-          const data = await response.json();
-          reply = data.reply || "I am here to support you. Could you please rephrase your question?";
+        if (!response.ok) {
+          let errMsg = `Status ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData.error?.message) {
+              errMsg = errData.error.message;
+            }
+          } catch (_) {}
+          throw new Error(errMsg);
         }
 
+        const data = await response.json();
+        reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
+        
         setMessages([...chatHistory, { role: 'bot', text: reply }]);
       } catch (error) {
         console.error('Chat Gemini API error:', error);
@@ -287,7 +277,7 @@ IMPORTANT RULES:
         setIsLoading(false);
       }
     } else {
-      // Run local fallback immediately
+      // Run local fallback immediately (offline mode)
       setTimeout(() => {
         runFallback(userText, chatHistory);
         setIsLoading(false);
@@ -438,7 +428,7 @@ IMPORTANT RULES:
           <div className="flex items-center gap-2">
             <span className="text-base">✨</span>
             <p className="text-textMain font-semibold text-left">
-              Running via shared server AI. Connect your personal Gemini API key in Settings for higher rate limits!
+              Running in Local Guide Mode. Connect your personal Gemini API key to unlock real-time AI responses and tailored diet plans!
             </p>
           </div>
           <button 

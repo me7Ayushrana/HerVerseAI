@@ -24,17 +24,21 @@ function parseInlineMarkdown(text) {
 
 export default function Dashboard() {
   const user = useAuthStore(state => state.user);
+  const userId = user?.id || user?._id || 'mock-user-123';
   const displayName = user?.name || 'User';
   const initial = displayName.charAt(0).toUpperCase();
 
   const [aiTip, setAiTip] = useState(() => {
-    return localStorage.getItem('herverse-cached-ai-tip') || 
+    return localStorage.getItem(`herverse-${userId}-cached-ai-tip`) || 
+      localStorage.getItem('herverse-cached-ai-tip') || 
       aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
   });
   const [isGeneratingTip, setIsGeneratingTip] = useState(false);
 
   const generateNewTip = async () => {
-    const geminiApiKey = localStorage.getItem('herverse-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+    const geminiApiKey = localStorage.getItem(`herverse-${userId}-gemini-key`) || 
+      localStorage.getItem('herverse-gemini-key') || 
+      import.meta.env.VITE_GEMINI_API_KEY || '';
     
     setIsGeneratingTip(true);
 
@@ -105,34 +109,21 @@ export default function Dashboard() {
           throw new Error(`Gemini direct API response was incomplete or blocked. Finish reason: ${finishReason}`);
         }
       } else {
-        console.log('[Dashboard] Client API key missing, proxying to backend /api/chat...');
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Do not use any greetings, salutations, or preambles (do not say "Dear Gurnoor" or "Gurnoor"). State the tip directly. Keep it very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.`,
-            history: [],
-            systemInstruction: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not use greetings, salutations, or preambles. Do not address the user by name. State the tip directly. Do not stop mid-sentence."
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server proxy error: Status ${response.status}`);
+        console.log('[Dashboard] API key missing, falling back to local tips database...');
+        let nextTip = aiTip;
+        if (aiTipsDatabase.length > 1) {
+          while (nextTip === aiTip) {
+            nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
+          }
+        } else if (aiTipsDatabase.length === 1) {
+          nextTip = aiTipsDatabase[0];
         }
-
-        const data = await response.json();
-        if (data.reply) {
-          cleanTip = data.reply.trim();
-        } else {
-          throw new Error("Empty reply returned from server proxy");
-        }
+        cleanTip = nextTip;
       }
 
       if (cleanTip) {
         setAiTip(cleanTip);
-        localStorage.setItem('herverse-cached-ai-tip', cleanTip);
+        localStorage.setItem(`herverse-${userId}-cached-ai-tip`, cleanTip);
       } else {
         throw new Error("No clean tip found");
       }
@@ -148,13 +139,17 @@ export default function Dashboard() {
         nextTip = aiTipsDatabase[0];
       }
       setAiTip(nextTip);
-      localStorage.setItem('herverse-cached-ai-tip', nextTip);
+      localStorage.setItem(`herverse-${userId}-cached-ai-tip`, nextTip);
     } finally {
       setIsGeneratingTip(false);
     }
   };
 
-  const hasApiKey = !!(localStorage.getItem('herverse-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY);
+  const hasApiKey = !!(
+    localStorage.getItem(`herverse-${userId}-gemini-key`) || 
+    localStorage.getItem('herverse-gemini-key') || 
+    import.meta.env.VITE_GEMINI_API_KEY
+  );
 
   return (
     <motion.div 
