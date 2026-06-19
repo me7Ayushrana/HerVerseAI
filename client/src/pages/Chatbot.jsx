@@ -355,13 +355,21 @@ IMPORTANT RULES:
           </div>
           <div>
             <h2 className="text-2xl font-display font-bold text-textMain">HerVerse AI Assistant</h2>
-            {apiStatus === 'connected' ? (
+            {mode === 'ai' && hasApiKey && apiStatus === 'connected' ? (
               <p className="text-xs text-success flex items-center gap-1 font-semibold">
                 <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" /> Online
               </p>
+            ) : mode === 'local' ? (
+              <p className="text-xs text-slate-500 flex items-center gap-1 font-semibold" title="Running in Local Guide mode. All responses are offline.">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" /> Offline (Local Guide)
+              </p>
+            ) : !hasApiKey ? (
+              <p className="text-xs text-amber-500 flex items-center gap-1 font-semibold" title="No API key entered. Kindly reconnect or check settings.">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" /> Offline (No API Key)
+              </p>
             ) : (
-              <p className="text-xs text-amber-500 flex items-center gap-1 font-semibold" title="Last connection failed. Kindly reconnect or check if the quota is over.">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" /> API Disconnected (Check Quota/Key)
+              <p className="text-xs text-red-500 flex items-center gap-1 font-semibold" title="Gemini API connection failed. Quota might be expired or key is invalid. Kindly check/update your keys.">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Offline (API Key Expired / Quota Over)
               </p>
             )}
           </div>
