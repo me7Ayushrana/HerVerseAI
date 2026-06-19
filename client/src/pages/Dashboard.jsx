@@ -25,58 +25,88 @@ export default function Dashboard() {
     
     setIsGeneratingTip(true);
 
-    if (!geminiApiKey) {
-      // Pick a random tip from our extensive 101+ tips database
-      setTimeout(() => {
-        const nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
-        setAiTip(nextTip);
-        localStorage.setItem('herverse-cached-ai-tip', nextTip);
-        setIsGeneratingTip(false);
-      }, 700);
-      return;
-    }
-
     try {
-      const { url: geminiUrl } = await getBestAvailableModelAndUrl(geminiApiKey);
+      let cleanTip = "";
 
-      const response = await fetch(
-        geminiUrl,
-        {
+      if (geminiApiKey) {
+        console.log('[Dashboard] Fetching live tip directly from Gemini...');
+        const { url: geminiUrl } = await getBestAvailableModelAndUrl(geminiApiKey);
+
+        const response = await fetch(
+          geminiUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ 
+                    text: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.` 
+                  }]
+                }
+              ],
+              systemInstruction: {
+                parts: [{ text: "You are a professional women's wellness assistant. Always return a complete, polite, and actionable tip of the day. Do not stop mid-sentence or output conversational chatter." }]
+              },
+              generationConfig: {
+                maxOutputTokens: 150,
+                temperature: 0.7
+              }
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Gemini direct API error: Status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          cleanTip = text.trim();
+        } else {
+          throw new Error("Empty candidates returned from Gemini direct API");
+        }
+      } else {
+        console.log('[Dashboard] Client API key missing, proxying to backend /api/chat...');
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ 
-                  text: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health.` 
-                }]
-              }
-            ],
-            generationConfig: {
-              maxOutputTokens: 150,
-            }
+            message: `Give a single, concise, empathetic women's health and wellness tip of the day. The user is named ${displayName}. Keep the tip very short (maximum 2 sentences). Focus on simple actionable advice for nutrition, stress, fitness, or menstrual health. Return only the tip without any preambles.`,
+            history: []
           })
-        }
-      );
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const cleanTip = text.trim();
-          setAiTip(cleanTip);
-          localStorage.setItem('herverse-cached-ai-tip', cleanTip);
+        if (!response.ok) {
+          throw new Error(`Server proxy error: Status ${response.status}`);
         }
+
+        const data = await response.json();
+        if (data.reply) {
+          cleanTip = data.reply.trim();
+        } else {
+          throw new Error("Empty reply returned from server proxy");
+        }
+      }
+
+      if (cleanTip) {
+        setAiTip(cleanTip);
+        localStorage.setItem('herverse-cached-ai-tip', cleanTip);
       } else {
-        throw new Error("Failed response from Gemini API");
+        throw new Error("No clean tip found");
       }
     } catch (err) {
-      console.error("Error generating AI tip:", err);
-      // Fallback
-      setAiTip("Fuel your body with hydration and nutritious meals today to keep your energy stable.");
+      console.error("Error generating AI tip, falling back to local database:", err);
+      // Pick a random tip from our database
+      const nextTip = aiTipsDatabase[Math.floor(Math.random() * aiTipsDatabase.length)];
+      setAiTip(nextTip);
+      localStorage.setItem('herverse-cached-ai-tip', nextTip);
     } finally {
       setIsGeneratingTip(false);
     }
@@ -117,7 +147,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <span className="text-xl">✨</span>
             <p className="text-textMain font-semibold">
-              Live Gemini AI is currently offline. Connect your free API key in Settings to unlock real-time personalized wellness insights!
+              Running via shared server AI. Connect your personal Gemini API key in Settings for higher rate limits!
             </p>
           </div>
           <Link 
