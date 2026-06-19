@@ -115,6 +115,48 @@ export default function Chatbot() {
     setIsLoaded(true);
   }, [userId]);
 
+  // Verify API Key connection status on mount, when customApiKey, mode, or userId changes
+  useEffect(() => {
+    let active = true;
+    
+    const timer = setTimeout(async () => {
+      const keyPool = getApiKeyPool(customApiKey);
+      const fallbackKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+      const keysToTry = keyPool.length > 0 ? keyPool : (fallbackKey ? [fallbackKey] : []);
+
+      if (keysToTry.length === 0) {
+        if (active) setApiStatus('disconnected');
+        return;
+      }
+
+      let anyKeyWorked = false;
+      for (const key of keysToTry) {
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+          if (response.ok) {
+            anyKeyWorked = true;
+            break;
+          }
+        } catch (err) {
+          console.warn("Failed to verify key in mount test:", err);
+        }
+      }
+
+      if (active) {
+        if (anyKeyWorked) {
+          setApiStatus('connected');
+        } else {
+          setApiStatus('disconnected');
+        }
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [customApiKey, mode, userId]);
+
   const handleSaveKey = (e) => {
     e.preventDefault();
     const cleanKey = customApiKey.trim();
@@ -332,6 +374,10 @@ IMPORTANT RULES:
       reply = `Nutrition and Healthy Eating\n\nFueling your body with key nutrients changes how you feel:\n\n- Hydration: Aim for 2.5 Liters of water daily. Use the water tracker in the Nutrition page to easily log cups throughout the day.\n- Balanced Macros: Include protein with every meal to keep blood sugar stable.\n- Cycle-Syncing: Eat warm foods during menstruation, fresh raw greens during follicular, and fiber-rich slow carbs during luteal.${disclaimer}`;
     } else if (msgLower.includes('exercise') || msgLower.includes('workout') || msgLower.includes('fitness') || msgLower.includes('gym') || msgLower.includes('yoga') || msgLower.includes('strength')) {
       reply = `Fitness and Movement\n\nRegular physical activity is a pillar of wellness. To optimize your workouts, match them to your hormonal cycle:\n\n- Follicular/Ovulatory: ESTROGEN is high. Ideal for strength training, HIIT, and higher intensity routines.\n- Luteal/Menstrual: PROGESTERONE dominates or hormones drop. Opt for active recovery, pilates, walking, and slow yoga flows.\n\nCheck out the Fitness page to select a curated cycle-synced routine and log your activity!${disclaimer}`;
+    } else if (msgLower.includes('weight') || msgLower.includes('height') || msgLower.includes('bmi') || msgLower.includes('bmr') || msgLower.includes('ideal') || msgLower.includes('body mass')) {
+      reply = `Ideal Weight and BMI Guidance for Women\n\nA healthy body weight is usually evaluated using the Body Mass Index (BMI). Here is the standard breakdown:\n- Underweight: BMI under 18.5\n- Normal / Healthy Weight: BMI 18.5 – 24.9\n- Overweight: BMI 25.0 – 29.9\n- Obese: BMI 30.0 or higher\n\nFor a height of 165 cm (approx. 5 feet 5 inches):\n- The healthy weight range is approximately 50.5 kg to 67.8 kg.\n- An ideal middle-range weight is typically around 58 - 60 kg, depending on bone density, muscle mass, and age.\n\nHormonal weight changes:\n1. Water Retention: During the Luteal and Menstrual phases, progesterone and estrogen shifts can cause temporary water retention, showing a temporary increase of 1 to 2 kg on the scale. Do not panic! This is completely normal.\n2. Muscle vs Fat: Focus on body composition and strength rather than just the number on the scale. Strength training optimizes metabolic health and insulin sensitivity, especially helpful for PCOS.\n\nYou can calculate your exact daily calorie and macronutrient requirements by completing the onboarding inside our Nutrition & Meal Planner page in the sidebar!${disclaimer}`;
+    } else if (msgLower === 'hi' || msgLower === 'hello' || msgLower === 'hey' || msgLower.startsWith('hi ') || msgLower.startsWith('hello ') || msgLower.startsWith('hey ')) {
+      reply = `Hello! I am HerVerse AI, your companion for women's wellness. How can I help you today? You can ask me about menstrual cycles, pregnancy care, PCOS management, diet plans, workout routines, or grounding exercises!`;
     } else {
       reply = `Welcome to HerVerse AI\n\nI am your companion for women's wellness. You can ask me anything about:\n- Menstrual cycles and period symptoms\n- Pregnancy care, kick counting, and fetal growth\n- PCOS/PCOD symptom management\n- Nutrition and hydration goals\n- Fitness plans and cycle-syncing exercises\n- Mental wellness and grounding techniques\n\nFeel free to ask a specific question, or select any of the dedicated tracking modules in the sidebar!${disclaimer}`;
     }
@@ -554,7 +600,7 @@ IMPORTANT RULES:
             type="text" 
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder={mode === 'ai' ? "Ask anything... (Live Gemini active)" : "Ask about period, PCOS, fitness, pregnancy, stress..."}
+            placeholder={mode === 'ai' && apiStatus === 'connected' ? "Ask anything... (Live Gemini active)" : mode === 'ai' ? "Ask anything... (Gemini Offline - using Local Guide)" : "Ask about period, PCOS, fitness, pregnancy, stress..."}
             className="w-full bg-white border border-primary/25 rounded-full pl-6 pr-24 py-4 text-textMain focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm shadow-inner placeholder-muted/50"
           />
           <div className="absolute right-2 flex gap-2">
