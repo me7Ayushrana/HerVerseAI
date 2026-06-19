@@ -530,6 +530,9 @@ const generateMealSwapWithDirectGemini = async (profile, cyclePhase, targetMeal,
     "benefitNote": string
   }`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -539,8 +542,10 @@ const generateMealSwapWithDirectGemini = async (profile, cyclePhase, targetMeal,
         responseMimeType: "application/json",
         temperature: 0.3
       }
-    })
+    }),
+    signal: controller.signal
   });
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     throw new Error(`Gemini direct API error: Status ${response.status}`);
@@ -574,6 +579,9 @@ const generatePlanWithDirectGemini = async (profile, cyclePhase, targetCalories,
     cycleData
   });
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -583,8 +591,10 @@ const generatePlanWithDirectGemini = async (profile, cyclePhase, targetCalories,
         responseMimeType: "application/json",
         temperature: 0.2
       }
-    })
+    }),
+    signal: controller.signal
   });
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     throw new Error(`Gemini direct API error: Status ${response.status}`);

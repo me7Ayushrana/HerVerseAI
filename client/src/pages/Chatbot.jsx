@@ -232,6 +232,9 @@ IMPORTANT RULES:
         console.log('[Chatbot] Calling Google Gemini API directly...');
         const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(
           geminiUrl,
           {
@@ -247,9 +250,11 @@ IMPORTANT RULES:
               generationConfig: {
                 maxOutputTokens: 1000,
               }
-            })
+            }),
+            signal: controller.signal
           }
         );
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           let errMsg = `Status ${response.status}`;
@@ -268,11 +273,7 @@ IMPORTANT RULES:
         setMessages([...chatHistory, { role: 'bot', text: reply }]);
       } catch (error) {
         console.error('Chat Gemini API error:', error);
-        runFallback(
-          userText, 
-          chatHistory, 
-          `Note: Live AI Connection failed (${error.message || error}). Temporarily falling back to our offline wellness database:\n\n`
-        );
+        runFallback(userText, chatHistory);
       } finally {
         setIsLoading(false);
       }
