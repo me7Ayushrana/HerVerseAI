@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { protect } = require('../middleware/authMiddleware');
-
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key_for_now');
 
 // System prompt for the health assistant
 const SYSTEM_PROMPT = `
@@ -18,10 +14,90 @@ IMPORTANT RULES:
 4. Keep your responses concise and well-formatted using markdown.
 `;
 
+const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+
+// Helper for model fallback and retry logic
+async function sendMessageWithFallback(message, history, apiKey) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let lastError = null;
+
+  for (const modelName of MODELS) {
+    try {
+      console.log(`[Gemini Proxy] Attempting chat using model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ 
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT
+      });
+
+      // Format history so it strictly alternates and starts with 'user'
+      const formattedHistory = [];
+      if (history && Array.isArray(history)) {
+        for (const msg of history.slice(-8)) {
+          const role = msg.role === 'user' ? 'user' : 'model';
+          if (formattedHistory.length === 0) {
+            if (role === 'user') {
+              formattedHistory.push({ role, parts: [{ text: msg.text }] });
+            }
+          } else {
+            const lastItem = formattedHistory[formattedHistory.length - 1];
+            if (lastItem.role === role) {
+              lastItem.parts[0].text += "\n" + msg.text;
+            } else {
+              formattedHistory.push({ role, parts: [{ text: msg.text }] });
+            }
+          }
+        }
+      }
+
+      // Retry mechanism for transient errors (rate limit 429, 5xx server errors)
+      let retries = 3;
+      let delay = 1000;
+      let chat = null;
+
+      while (retries > 0) {
+        try {
+          chat = model.startChat({
+            history: formattedHistory,
+            generationConfig: {
+              maxOutputTokens: 1000,
+            },
+          });
+          const result = await chat.sendMessage(message);
+          const response = await result.response;
+          const text = response.text();
+          if (text) {
+            console.log(`[Gemini Proxy] Success with model: ${modelName}`);
+            return text;
+          }
+        } catch (err) {
+          const status = err.status || (err.message && err.message.match(/\b\d{3}\b/)?.[0]);
+          const isRateLimit = status == 429 || err.message?.includes('429');
+          const isTransient = isRateLimit || status >= 500 || err.message?.includes('500') || err.message?.includes('socket') || err.message?.includes('timeout');
+          
+          if (isTransient && retries > 1) {
+            console.warn(`[Gemini Proxy] Transient error on ${modelName} (${err.message || err}). Retrying in ${delay}ms... (${retries - 1} left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+            retries--;
+          } else {
+            throw err;
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[Gemini Proxy] Model ${modelName} failed:`, err.message || err);
+      lastError = err;
+      // Loop continues to next model fallback
+    }
+  }
+
+  throw lastError || new Error("All Gemini models failed to respond.");
+}
+
 // @route   POST /api/chat
-// @desc    Send a message to the AI Chatbot
-// @access  Private (or Public for testing, let's keep it protected)
-router.post('/', protect, async (req, res) => {
+// @desc    Send a message to the AI Chatbot (Public route proxied through rate limiter)
+// @access  Public (Rate-limited, CORS protected)
+router.post('/', async (req, res) => {
   try {
     const { message, history } = req.body;
 
@@ -29,66 +105,17 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'Message is required' });
     }
 
-    // Configure the model
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    // Format history for Gemini API
-    const formattedHistory = history ? history.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }]
-    })) : [];
-
-    // Start a chat session
-    const chat = model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: "System Instructions: " + SYSTEM_PROMPT }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: "Understood. I am HerVerse AI, ready to assist." }]
-        },
-        ...formattedHistory
-      ],
-      generationConfig: {
-        maxOutputTokens: 1000,
-      },
-    });
-
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
-
-    res.json({ reply: text });
-  } catch (error) {
-    console.error('Chat API Error:', error);
-    
-    // Smart local conversational fallback for offline/unconfigured API keys
-    const msgLower = req.body.message.toLowerCase();
-    let reply = "";
-
-    const disclaimer = "\n\n*Please remember that I am an AI assistant and this information is not a replacement for professional medical advice. Always consult with your healthcare provider for medical decisions.*";
-
-    if (msgLower.includes('emergency') || msgLower.includes('severe pain') || msgLower.includes('bleeding heavily') || msgLower.includes('chest pain')) {
-      reply = `🚨 **Emergency Alert** 🚨\n\nIf you are experiencing severe pain, heavy abnormal bleeding, chest tightness, or other medical emergencies, please seek immediate professional medical attention or call emergency services right away. You can also view the emergency numbers in our **Emergency Center** in the sidebar. Please take care of yourself!${disclaimer}`;
-    } else if (msgLower.includes('pcos') || msgLower.includes('pcod') || msgLower.includes('cyst') || msgLower.includes('irregular cycle')) {
-      reply = `🌸 **PCOS/PCOD Guidance** 🌸\n\nManaging PCOS/PCOD involves supportive lifestyle, dietary, and fitness habits:\n\n1. **Low Glycemic Index Diet**: Prioritize whole grains, leafy greens, healthy fats, and high fiber to help manage insulin resistance.\n2. **Strength Training**: Building muscle mass helps optimize metabolic function and hormone levels.\n3. **Sleep Hygiene**: Maintain a consistent 7-8 hours of sleep to stabilize cortisol (stress hormone) levels.\n4. **Regular Tracking**: Keep logging your symptoms in our **PCOS Manager** to identify personal triggers.${disclaimer}`;
-    } else if (msgLower.includes('period') || msgLower.includes('cycle') || msgLower.includes('menstru') || msgLower.includes('cramp') || msgLower.includes('flow')) {
-      reply = `📅 **Menstrual Cycle & Care** 📅\n\nHere are some helpful insights for your cycle:\n\n* **Menstrual Phase (Days 1-5)**: Energy levels are lowest. Focus on low-impact movement (like gentle yoga) and warm, iron-rich meals (spinach, soups).\n* **Follicular Phase (Days 6-12)**: Estrogen is rising, giving you a boost of energy. Great time to plan cardio and try new fitness exercises.\n* **Ovulation Phase (Days 13-15)**: Peak fertility and energy! High-intensity workouts are excellent now.\n* **Luteal Phase (Days 16-28)**: Progesterone dominates. You may experience PMS, bloating, or fatigue. Supplement with magnesium-rich foods (dark chocolate, pumpkin seeds) to calm cramps.\n\nUse our **Period Tracker** in the sidebar to log flows, symptoms, and visualize your cycle phase in 3D!${disclaimer}`;
-    } else if (msgLower.includes('pregna') || msgLower.includes('baby') || msgLower.includes('due date') || msgLower.includes('kick') || msgLower.includes('contraction')) {
-      reply = `🤰 **Pregnancy Support** 🤰\n\nCongratulations on this beautiful journey! Here is some quick guidance:\n\n* **Fetal Movement**: From Week 28, it is recommended to count fetal kicks. Use our built-in **Kick Counter** inside the **Pregnancy Care** page to track 10 kicks (ideally within 2 hours).\n* **Contractions**: If you feel tightening in your abdomen, use the **Contraction Timer** tab to calculate the duration and frequency. Remember the 5-1-1 rule: seek care if contractions are 5 minutes apart, lasting 1 minute, for at least 1 hour.\n* **Nutrition**: Focus on folate, iron, calcium, and staying well-hydrated. Check out your personalized Weekly Guide in the **Pregnancy Care** page!${disclaimer}`;
-    } else if (msgLower.includes('stress') || msgLower.includes('anxious') || msgLower.includes('breath') || msgLower.includes('mood') || msgLower.includes('depress') || msgLower.includes('sad')) {
-      reply = `🧠 **Mental Wellness & Grounding** 🧠\n\nI hear you, and it's completely okay to feel this way. Let's try a quick grounding exercise:\n\n* **Mindful Breathing**: Go to the **Mental Wellness** page in the sidebar and try our interactive breathing bubble. Breathe in as it expands, hold, and breathe out as it shrinks. Just 2 minutes can significantly reduce stress.\n* **Journaling**: Writing down your thoughts in the daily diary helper can help release tension. Don't bottle it up!${disclaimer}`;
-    } else if (msgLower.includes('diet') || msgLower.includes('nutrition') || msgLower.includes('eat') || msgLower.includes('food') || msgLower.includes('meal') || msgLower.includes('water')) {
-      reply = `🍎 **Nutrition & Healthy Eating** 🍎\n\nFueling your body with key nutrients changes how you feel:\n\n* **Hydration**: Aim for 2.5 Liters of water daily. Use the water tracker in the **Nutrition** page to easily log cups throughout the day.\n* **Balanced Macros**: Include protein with every meal to keep blood sugar stable.\n* **Cycle-Syncing**: Eat warm foods during menstruation, fresh raw greens during follicular, and fiber-rich slow carbs during luteal.${disclaimer}`;
-    } else if (msgLower.includes('exercise') || msgLower.includes('workout') || msgLower.includes('fitness') || msgLower.includes('gym') || msgLower.includes('yoga') || msgLower.includes('strength')) {
-      reply = `🏋️ **Fitness & Movement** 🏋️\n\nRegular physical activity is a pillar of wellness. To optimize your workouts, match them to your hormonal cycle:\n\n* **Follicular/Ovulatory**: ESTROGEN is high. Ideal for strength training, HIIT, and higher intensity routines.\n* **Luteal/Menstrual**: PROGESTERONE dominates or hormones drop. Opt for active recovery, pilates, walking, and slow yoga flows.\n\nCheck out the **Fitness** page to select a curated cycle-synced routine and log your activity!${disclaimer}`;
-    } else {
-      reply = `🌸 **Welcome to HerVerse AI** 🌸\n\nI am your companion for women's wellness. You can ask me anything about:\n* **Menstrual cycles** and period symptoms\n* **Pregnancy care**, kick counting, and fetal growth\n* **PCOS/PCOD** symptom management\n* **Nutrition** and hydration goals\n* **Fitness plans** and cycle-syncing exercises\n* **Mental wellness** and grounding techniques\n\nFeel free to ask a specific question, or select any of the dedicated tracking modules in the sidebar!${disclaimer}`;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+      console.warn('[Gemini Proxy] GEMINI_API_KEY environment variable is not configured or is using default placeholder.');
+      return res.status(503).json({ message: 'Gemini API key is not configured on the server.' });
     }
 
+    const reply = await sendMessageWithFallback(message, history, apiKey);
     res.json({ reply });
+  } catch (error) {
+    console.error('Chat API Error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error while calling Gemini API' });
   }
 });
 

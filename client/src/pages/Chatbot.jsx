@@ -46,19 +46,6 @@ export default function Chatbot() {
     const activeKey = customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY || '';
     
     if (mode === 'ai') {
-      if (!activeKey) {
-        // No key configured, explain and fallback
-        setTimeout(() => {
-          runFallback(
-            userText, 
-            chatHistory, 
-            "💡 **Note: Live AI Mode is active but no API Key is configured.**\n*Here is a detailed guide from our offline wellness database:*\n\n"
-          );
-          setIsLoading(false);
-        }, 600);
-        return;
-      }
-
       try {
         const SYSTEM_PROMPT = `
 You are HerVerse AI, a compassionate, knowledgeable, and professional women's health and wellness assistant.
@@ -100,40 +87,72 @@ IMPORTANT RULES:
           });
         }
 
-        const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
+        let reply = "";
 
-        const response = await fetch(
-          geminiUrl,
-          {
+        if (activeKey) {
+          console.log('[Chatbot] Calling Google Gemini API directly...');
+          const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
+
+          const response = await fetch(
+            geminiUrl,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_PROMPT }]
+                },
+                generationConfig: {
+                  maxOutputTokens: 1000,
+                }
+              })
+            }
+          );
+
+          if (!response.ok) {
+            let errMsg = `Status ${response.status}`;
+            try {
+              const errData = await response.json();
+              if (errData.error?.message) {
+                errMsg = errData.error.message;
+              }
+            } catch (_) {}
+            throw new Error(errMsg);
+          }
+
+          const data = await response.json();
+          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
+        } else {
+          console.log('[Chatbot] Client API key missing, proxying to backend /api/chat...');
+          const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              contents,
-              system_instruction: {
-                parts: [{ text: SYSTEM_PROMPT }]
-              },
-              generationConfig: {
-                maxOutputTokens: 1000,
-              }
+              message: userText,
+              history: messages
             })
-          }
-        );
+          });
 
-        if (!response.ok) {
-          let errMsg = `Status ${response.status}`;
-          try {
-            const errData = await response.json();
-            if (errData.error?.message) {
-              errMsg = errData.error.message;
-            }
-          } catch (_) {}
-          throw new Error(errMsg);
+          if (!response.ok) {
+            let errMsg = `Status ${response.status}`;
+            try {
+              const errData = await response.json();
+              if (errData.message) {
+                errMsg = errData.message;
+              }
+            } catch (_) {}
+            throw new Error(errMsg);
+          }
+
+          const data = await response.json();
+          reply = data.reply || "I am here to support you. Could you please rephrase your question?";
         }
 
-        const data = await response.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
         setMessages([...chatHistory, { role: 'bot', text: reply }]);
       } catch (error) {
         console.error('Chat Gemini API error:', error);
@@ -297,7 +316,7 @@ IMPORTANT RULES:
           <div className="flex items-center gap-2">
             <span className="text-base">✨</span>
             <p className="text-textMain font-semibold text-left">
-              Chatbot is running in Offline Fallback Mode. Connect your free Gemini API key to activate live responses!
+              Running via shared server AI. Connect your personal Gemini API key in Settings for higher rate limits!
             </p>
           </div>
           <button 
