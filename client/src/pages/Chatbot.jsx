@@ -72,10 +72,18 @@ function renderMarkdown(text) {
   });
 }
 
+// Helper to extract a list of keys from user input
+const getApiKeyPool = (keyString) => {
+  if (!keyString) return [];
+  return keyString.split(/[\s,]+/).map(k => k.trim()).filter(k => k.startsWith('AIzaSy'));
+};
+
 export default function Chatbot() {
   const user = useAuthStore(state => state.user);
   const userId = user?.id || user?._id || 'mock-user-123';
   const [isLoaded, setIsLoaded] = useState(false);
+  const [apiStatus, setApiStatus] = useState('connected');
+  const [keyIndex, setKeyIndex] = useState(0);
 
   const [messages, setMessages] = useState([
     { role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }
@@ -183,11 +191,7 @@ export default function Chatbot() {
     setInput('');
     setIsLoading(true);
     
-    const activeKey = customApiKey.trim() || localStorage.getItem('herverse-gemini-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
-    
-    if (mode === 'ai' && activeKey) {
-      try {
-        const SYSTEM_PROMPT = `
+    const SYSTEM_PROMPT = `
 You are HerVerse AI, a compassionate, knowledgeable, and professional women's health and wellness assistant.
 Your goal is to provide supportive, accurate, and easy-to-understand information related to menstrual health, pregnancy, mental wellness, PCOS/PCOD, nutrition, and fitness for women.
 
@@ -198,85 +202,107 @@ IMPORTANT RULES:
 4. Keep your responses concise and well-formatted using markdown.
 `;
 
-        // Format history so it strictly alternates and starts with 'user'
-        const formattedHistory = [];
-        for (const msg of messages.slice(-8)) {
-          const role = msg.role === 'user' ? 'user' : 'model';
-          if (formattedHistory.length === 0) {
-            if (role === 'user') {
-              formattedHistory.push({ role, parts: [{ text: msg.text }] });
-            }
-          } else {
-            const lastItem = formattedHistory[formattedHistory.length - 1];
-            if (lastItem.role === role) {
-              lastItem.parts[0].text += "\n" + msg.text;
-            } else {
-              formattedHistory.push({ role, parts: [{ text: msg.text }] });
-            }
-          }
+    // Format history so it strictly alternates and starts with 'user'
+    const formattedHistory = [];
+    for (const msg of messages.slice(-8)) {
+      const role = msg.role === 'user' ? 'user' : 'model';
+      if (formattedHistory.length === 0) {
+        if (role === 'user') {
+          formattedHistory.push({ role, parts: [{ text: msg.text }] });
         }
-
-        // Add the new user message, combining with the last message if it was also a user message
-        const contents = [...formattedHistory];
-        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
-          contents[contents.length - 1].parts[0].text += "\n" + userText;
+      } else {
+        const lastItem = formattedHistory[formattedHistory.length - 1];
+        if (lastItem.role === role) {
+          lastItem.parts[0].text += "\n" + msg.text;
         } else {
-          contents.push({
-            role: 'user',
-            parts: [{ text: userText }]
-          });
+          formattedHistory.push({ role, parts: [{ text: msg.text }] });
         }
-
-        let reply = "";
-
-        console.log('[Chatbot] Calling Google Gemini API directly...');
-        const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-        const response = await fetch(
-          geminiUrl,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents,
-              systemInstruction: {
-                parts: [{ text: SYSTEM_PROMPT }]
-              },
-              generationConfig: {
-                maxOutputTokens: 1000,
-              }
-            }),
-            signal: controller.signal
-          }
-        );
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          let errMsg = `Status ${response.status}`;
-          try {
-            const errData = await response.json();
-            if (errData.error?.message) {
-              errMsg = errData.error.message;
-            }
-          } catch (_) {}
-          throw new Error(errMsg);
-        }
-
-        const data = await response.json();
-        reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
-        
-        setMessages([...chatHistory, { role: 'bot', text: reply }]);
-      } catch (error) {
-        console.error('Chat Gemini API error:', error);
-        runFallback(userText, chatHistory);
-      } finally {
-        setIsLoading(false);
       }
+    }
+
+    // Add the new user message, combining with the last message if it was also a user message
+    const contents = [...formattedHistory];
+    if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+      contents[contents.length - 1].parts[0].text += "\n" + userText;
+    } else {
+      contents.push({
+        role: 'user',
+        parts: [{ text: userText }]
+      });
+    }
+
+    const keyPool = getApiKeyPool(customApiKey);
+    const fallbackKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    const keysToTry = keyPool.length > 0 ? keyPool : (fallbackKey ? [fallbackKey] : []);
+    
+    if (mode === 'ai' && keysToTry.length > 0) {
+      let success = false;
+      let reply = "";
+      
+      // Start trying from the current keyIndex in our rotation pool
+      for (let attempt = 0; attempt < keysToTry.length; attempt++) {
+        const currentIdx = (keyIndex + attempt) % keysToTry.length;
+        const activeKey = keysToTry[currentIdx];
+        
+        try {
+          console.log(`[Chatbot] Attempting Gemini API request with key index ${currentIdx}...`);
+          const { url: geminiUrl } = await getBestAvailableModelAndUrl(activeKey);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+          const response = await fetch(
+            geminiUrl,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_PROMPT }]
+                },
+                generationConfig: {
+                  maxOutputTokens: 1000,
+                }
+              }),
+              signal: controller.signal
+            }
+          );
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            let errMsg = `Status ${response.status}`;
+            try {
+              const errData = await response.json();
+              if (errData.error?.message) {
+                errMsg = errData.error.message;
+              }
+            } catch (_) {}
+            throw new Error(errMsg);
+          }
+
+          const data = await response.json();
+          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
+          
+          setMessages([...chatHistory, { role: 'bot', text: reply }]);
+          setApiStatus('connected');
+          setKeyIndex(currentIdx);
+          success = true;
+          break; // Exit retry loop on successful completion
+        } catch (error) {
+          console.warn(`[Chatbot] Gemini API request failed for key index ${currentIdx}:`, error.message || error);
+          
+          // If all keys in the pool failed, fall back to the offline database
+          if (attempt === keysToTry.length - 1) {
+            setApiStatus('disconnected');
+            console.error('[Chatbot] Chat Gemini API error: All keys in rotation pool failed.');
+            runFallback(userText, chatHistory);
+          }
+        }
+      }
+      setIsLoading(false);
     } else {
       // Run local fallback immediately (offline mode)
       setTimeout(() => {
@@ -329,9 +355,15 @@ IMPORTANT RULES:
           </div>
           <div>
             <h2 className="text-2xl font-display font-bold text-textMain">HerVerse AI Assistant</h2>
-            <p className="text-xs text-success flex items-center gap-1 font-semibold">
-              <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" /> Online
-            </p>
+            {apiStatus === 'connected' ? (
+              <p className="text-xs text-success flex items-center gap-1 font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" /> Online
+              </p>
+            ) : (
+              <p className="text-xs text-amber-500 flex items-center gap-1 font-semibold" title="Last connection failed. Kindly reconnect or check if the quota is over.">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" /> API Disconnected (Check Quota/Key)
+              </p>
+            )}
           </div>
         </div>
 
@@ -389,22 +421,34 @@ IMPORTANT RULES:
               </h4>
               <p className="text-xs text-muted leading-relaxed mb-4">
                 To chat using real-time Google Gemini generative models, paste your API Key here. 
-                Your key is stored <strong>locally and securely</strong> in your web browser, never uploaded to GitHub or shared.
+                You can paste <strong>multiple keys separated by commas or spaces</strong> to build a rotation pool so your quota never runs out!
               </p>
+
+              {customApiKey.trim() && (
+                <div className="mb-3 px-3.5 py-2 bg-success/10 border border-success/20 rounded-xl text-xs text-success font-semibold flex items-center gap-1.5 self-start">
+                  <Check size={14} />
+                  <span>
+                    API Key Rotation Pool Active ({getApiKeyPool(customApiKey).length} key(s) loaded)
+                  </span>
+                </div>
+              )}
               
               <div className="mb-4 bg-primary/5 p-3 rounded-xl border border-primary/10 text-[10px] text-muted leading-relaxed space-y-1">
-                <p><strong>🔑 How to get your free key (Takes 30 seconds):</strong></p>
+                <p><strong>🔑 How to get free API keys:</strong></p>
                 <p>1. Open <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a> and sign in with Gmail.</p>
-                <p>2. Click <strong>"Get API Key"</strong> -&gt; <strong>"Create API Key in new project"</strong>.</p>
-                <p>3. Copy the key and save it below. No credit card or billing is required!</p>
+                <p>2. Click <strong>"Get API Key"</strong> -&gt; <strong>"Create API Key in new project"</strong> and copy it.</p>
+                <p>3. (Optional) Create key pools by logging into different Google accounts to get additional keys, then paste them separated by commas below!</p>
               </div>
               
               <form onSubmit={handleSaveKey} className="flex gap-2">
                 <input 
-                  type="password" 
+                  type="text" 
                   value={customApiKey}
-                  onChange={e => setCustomApiKey(e.target.value)}
-                  placeholder="AI Studio API Key (e.g. AIzaSy...)"
+                  onChange={e => {
+                    setCustomApiKey(e.target.value);
+                    setApiStatus('connected'); // reset status on edit
+                  }}
+                  placeholder="API Keys (separated by commas: Key1, Key2, ...)"
                   className="flex-1 bg-white border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-textMain focus:outline-none focus:border-primary"
                 />
                 <button 
@@ -470,6 +514,32 @@ IMPORTANT RULES:
             </div>
           )}
         </div>
+
+        {messages.length <= 1 && (
+          <div className="mb-2 mt-4">
+            <p className="text-xs text-muted font-bold mb-2 uppercase tracking-wider text-left">Quick Topics to Explore:</p>
+            <div className="flex flex-wrap gap-2 justify-start">
+              {[
+                { label: "📅 Cycle Phase Tips", prompt: "What are the best foods and exercises for my current cycle phase?" },
+                { label: "🥗 Low-GI PCOS Diet", prompt: "Explain the low glycemic index diet guidelines for PCOS management." },
+                { label: "🤰 Kick Counter Rules", prompt: "How and when should I count fetal kicks during pregnancy?" },
+                { label: "🧘 2-Min Grounding Flow", prompt: "Give me a quick grounding exercise or stress release routine." },
+                { label: "💧 Water Goal Benefits", prompt: "Why is drinking 2.5 liters of water daily important for hormonal balance?" }
+              ].map((pill, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setInput(pill.prompt);
+                  }}
+                  className="px-3.5 py-2 text-xs font-bold bg-primary/5 border border-primary/10 rounded-full text-primary hover:bg-primary hover:text-white transition-all duration-300 active:scale-95 cursor-pointer shadow-sm"
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         
         <form onSubmit={handleSend} className="mt-4 relative flex items-center">
           <input 

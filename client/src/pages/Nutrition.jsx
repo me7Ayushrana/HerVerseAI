@@ -492,10 +492,11 @@ const generateOfflineMealSwap = (mealType, currentDisplayName, isVeg, isWeightGa
   };
 };
 
-const generateMealSwapWithDirectGemini = async (profile, cyclePhase, targetMeal, apiKey) => {
+const generateMealSwapWithDirectGemini = async (profile, cyclePhase, targetMeal, apiKeyString) => {
   const { getBestAvailableModelAndUrl } = await import('../utils/gemini');
-  const { url } = await getBestAvailableModelAndUrl(apiKey);
-  if (!url) throw new Error('Could not resolve Gemini API endpoint.');
+  const keyPool = apiKeyString.split(/[\s,]+/).map(k => k.trim()).filter(k => k.startsWith('AIzaSy'));
+  const keysToTry = keyPool.length > 0 ? keyPool : [];
+  if (keysToTry.length === 0) throw new Error('No valid Gemini API key found.');
 
   const allergies = profile.allergies && profile.allergies.length > 0 ? profile.allergies.join(', ') : "None";
   const avoidFoods = profile.avoidFoods && profile.avoidFoods.length > 0 ? profile.avoidFoods.join(', ') : "None";
@@ -530,43 +531,58 @@ const generateMealSwapWithDirectGemini = async (profile, cyclePhase, targetMeal,
     "benefitNote": string
   }`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  for (let idx = 0; idx < keysToTry.length; idx++) {
+    const activeKey = keysToTry[idx];
+    try {
+      console.log(`[Nutrition Swap] Attempting key index ${idx}...`);
+      const { url } = await getBestAvailableModelAndUrl(activeKey);
+      if (!url) throw new Error('Could not resolve Gemini API endpoint.');
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.3
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.3
+          }
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Gemini direct API error: Status ${response.status}`);
       }
-    }),
-    signal: controller.signal
-  });
-  clearTimeout(timeoutId);
 
-  if (!response.ok) {
-    throw new Error(`Gemini direct API error: Status ${response.status}`);
+      const resultData = await response.json();
+      const candidate = resultData.candidates?.[0];
+      const responseText = candidate?.content?.parts?.[0]?.text;
+      if (!responseText) throw new Error('Empty response from Gemini.');
+
+      const cleanJSONText = responseText.substring(
+        responseText.indexOf('{'),
+        responseText.lastIndexOf('}') + 1
+      );
+      return JSON.parse(cleanJSONText);
+    } catch (err) {
+      console.warn(`[Nutrition Swap] Key index ${idx} failed:`, err.message || err);
+      if (idx === keysToTry.length - 1) {
+        throw err;
+      }
+    }
   }
-
-  const resultData = await response.json();
-  const candidate = resultData.candidates?.[0];
-  const responseText = candidate?.content?.parts?.[0]?.text;
-  if (!responseText) throw new Error('Empty response from Gemini.');
-
-  const cleanJSONText = responseText.substring(
-    responseText.indexOf('{'),
-    responseText.lastIndexOf('}') + 1
-  );
-  return JSON.parse(cleanJSONText);
 };
 
-const generatePlanWithDirectGemini = async (profile, cyclePhase, targetCalories, macros, apiKey) => {
+const generatePlanWithDirectGemini = async (profile, cyclePhase, targetCalories, macros, apiKeyString) => {
   const { getBestAvailableModelAndUrl } = await import('../utils/gemini');
-  const { url } = await getBestAvailableModelAndUrl(apiKey);
-  if (!url) throw new Error('Could not resolve Gemini API endpoint.');
+  const keyPool = apiKeyString.split(/[\s,]+/).map(k => k.trim()).filter(k => k.startsWith('AIzaSy'));
+  const keysToTry = keyPool.length > 0 ? keyPool : [];
+  if (keysToTry.length === 0) throw new Error('No valid Gemini API key found.');
 
   const phase = (cyclePhase || 'menstrual').toLowerCase();
   const cycleData = CYCLE_MAP[phase] || CYCLE_MAP.menstrual;
@@ -579,75 +595,89 @@ const generatePlanWithDirectGemini = async (profile, cyclePhase, targetCalories,
     cycleData
   });
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  for (let idx = 0; idx < keysToTry.length; idx++) {
+    const activeKey = keysToTry[idx];
+    try {
+      console.log(`[Nutrition Plan] Attempting key index ${idx}...`);
+      const { url } = await getBestAvailableModelAndUrl(activeKey);
+      if (!url) throw new Error('Could not resolve Gemini API endpoint.');
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2
+          }
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Gemini direct API error: Status ${response.status}`);
       }
-    }),
-    signal: controller.signal
-  });
-  clearTimeout(timeoutId);
 
-  if (!response.ok) {
-    throw new Error(`Gemini direct API error: Status ${response.status}`);
-  }
+      const resultData = await response.json();
+      const candidate = resultData.candidates?.[0];
+      const responseText = candidate?.content?.parts?.[0]?.text;
+      if (!responseText) {
+        throw new Error('Gemini returned an empty response.');
+      }
 
-  const resultData = await response.json();
-  const candidate = resultData.candidates?.[0];
-  const responseText = candidate?.content?.parts?.[0]?.text;
-  if (!responseText) {
-    throw new Error('Gemini returned an empty response.');
-  }
+      const cleanJSONText = responseText.substring(
+        responseText.indexOf('{'),
+        responseText.lastIndexOf('}') + 1
+      );
+      
+      const parsedPlan = JSON.parse(cleanJSONText);
 
-  const cleanJSONText = responseText.substring(
-    responseText.indexOf('{'),
-    responseText.lastIndexOf('}') + 1
-  );
-  
-  const parsedPlan = JSON.parse(cleanJSONText);
+      const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+      const weekLabel = `Week of ${new Date().toLocaleDateString('en-US', dateOptions)}`;
 
-  const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
-  const weekLabel = `Week of ${new Date().toLocaleDateString('en-US', dateOptions)}`;
+      let dayNum = 1;
+      const days = (parsedPlan.days || []).map(day => {
+        let mealIndex = 1;
+        const meals = (day.meals || []).map(meal => {
+          return {
+            id: `meal-direct-gemini-${dayNum}-${mealIndex++}`,
+            ...meal,
+            isRegenerated: false
+          };
+        });
+        return {
+          dayNumber: dayNum++,
+          dayLabel: day.dayLabel || `Day ${dayNum - 1}`,
+          meals
+        };
+      });
 
-  let dayNum = 1;
-  const days = (parsedPlan.days || []).map(day => {
-    let mealIndex = 1;
-    const meals = (day.meals || []).map(meal => {
       return {
-        id: `meal-direct-gemini-${dayNum}-${mealIndex++}`,
-        ...meal,
-        isRegenerated: false
+        userId: profile.userId || 'mock-user-123',
+        nutritionProfileId: 'mock-profile-id',
+        cyclePhase: phase,
+        weekLabel,
+        targetCalories: parsedPlan.planSummary?.targetCalories || targetCalories,
+        proteinG: parsedPlan.planSummary?.proteinG || macros.proteinG,
+        carbG: parsedPlan.planSummary?.carbG || macros.carbG,
+        fatG: parsedPlan.planSummary?.fatG || macros.fatG,
+        keyFocusNote: parsedPlan.planSummary?.keyFocusNote || `Prioritize cycle-specific micro-nutrients.`,
+        cycleBenefitNote: parsedPlan.planSummary?.cycleBenefitNote || cycleData.phaseNote,
+        days,
+        isActive: true
       };
-    });
-    return {
-      dayNumber: dayNum++,
-      dayLabel: day.dayLabel || `Day ${dayNum - 1}`,
-      meals
-    };
-  });
-
-  return {
-    userId: profile.userId || 'mock-user-123',
-    nutritionProfileId: 'mock-profile-id',
-    cyclePhase: phase,
-    weekLabel,
-    targetCalories: parsedPlan.planSummary?.targetCalories || targetCalories,
-    proteinG: parsedPlan.planSummary?.proteinG || macros.proteinG,
-    carbG: parsedPlan.planSummary?.carbG || macros.carbG,
-    fatG: parsedPlan.planSummary?.fatG || macros.fatG,
-    keyFocusNote: parsedPlan.planSummary?.keyFocusNote || `Prioritize cycle-specific micro-nutrients.`,
-    cycleBenefitNote: parsedPlan.planSummary?.cycleBenefitNote || cycleData.phaseNote,
-    days,
-    isActive: true
-  };
+    } catch (err) {
+      console.warn(`[Nutrition Plan] Key index ${idx} failed:`, err.message || err);
+      if (idx === keysToTry.length - 1) {
+        throw err;
+      }
+    }
+  }
 };
 
 const generateClientMockPlan = (profile, cyclePhase, targetCalories, macros) => {
