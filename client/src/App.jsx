@@ -20,6 +20,7 @@ import HealthCalculators from './pages/HealthCalculators';
 import AdminPanel from './pages/AdminPanel';
 import Settings from './pages/Settings';
 import Sidebar from './components/layout/Sidebar';
+import GlobalMusicPlayer from './components/layout/GlobalMusicPlayer';
 import { useAuthStore } from './store/authStore';
 
 // Protected Route Wrapper
@@ -65,6 +66,7 @@ function App() {
         <Route path="/dashboard/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
         <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       </Routes>
+      <GlobalMusicPlayer />
     </Router>
   );
 }

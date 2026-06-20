@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Brain, Volume2, VolumeX, Play, Pause, Save, Heart, Sparkles, Moon, Plus, Trash2, Edit3, Check, X, Music, Loader2 } from 'lucide-react';
 import { classifySentiment } from '../utils/sentimentClassifier';
 import { useAuthStore } from '../store/authStore';
+import { useMusicStore } from '../store/musicStore';
 
 export default function MentalWellness() {
   const user = useAuthStore(state => state.user);
@@ -26,22 +27,23 @@ export default function MentalWellness() {
     ];
   });
 
-  // YouTube player and tracks state
-  const [tracks, setTracks] = useState(() => {
-    const saved = localStorage.getItem(`herverse-${userId}-custom-tracks`);
-    return saved ? JSON.parse(saved) : [
-      { id: 'default-1', name: 'Relaxing Zen Soundscape (Pre-Added)', url: 'https://youtu.be/D1f2dSi7kG4?si=k9cMfhtvzsqBME4o', videoId: 'D1f2dSi7kG4' }
-    ];
-  });
+  // Global YouTube player and tracks state from useMusicStore
+  const {
+    tracks,
+    playingTrackId,
+    playerState,
+    addTrack,
+    deleteTrack,
+    renameTrack,
+    playTrack,
+    togglePlayPause
+  } = useMusicStore();
+
   const [newTrackName, setNewTrackName] = useState('');
   const [newTrackUrl, setNewTrackUrl] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState(null);
   const [editingTrackName, setEditingTrackName] = useState('');
-  
-  const [player, setPlayer] = useState(null);
-  const [playingTrackId, setPlayingTrackId] = useState(null);
-  const [playerState, setPlayerState] = useState(-1); // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering
 
   // Affirmation state
   const affirmations = [
@@ -86,14 +88,7 @@ export default function MentalWellness() {
       ]);
     }
 
-    const savedTracks = localStorage.getItem(`herverse-${userId}-custom-tracks`);
-    if (savedTracks) {
-      setTracks(JSON.parse(savedTracks));
-    } else {
-      setTracks([
-        { id: 'default-1', name: 'Relaxing Zen Soundscape (Pre-Added)', url: 'https://youtu.be/D1f2dSi7kG4?si=k9cMfhtvzsqBME4o', videoId: 'D1f2dSi7kG4' }
-      ]);
-    }
+
 
     const savedGratitudes = localStorage.getItem(`herverse-${userId}-gratitudes`);
     if (savedGratitudes) {
@@ -194,30 +189,6 @@ export default function MentalWellness() {
     return 1;
   };
 
-  // Load YouTube API script on mount
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    }
-  }, []);
-
-  // Clean up player on unmount
-  useEffect(() => {
-    return () => {
-      if (player && typeof player.destroy === 'function') {
-        player.destroy();
-      }
-    };
-  }, [player]);
-
-  const saveTracks = (newTracks) => {
-    setTracks(newTracks);
-    localStorage.setItem(`herverse-${userId}-custom-tracks`, JSON.stringify(newTracks));
-  };
-
   const extractVideoId = (url) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
@@ -234,15 +205,7 @@ export default function MentalWellness() {
       return;
     }
 
-    const newTrack = {
-      id: Date.now().toString(),
-      name: newTrackName.trim(),
-      url: newTrackUrl.trim(),
-      videoId
-    };
-
-    const updated = [...tracks, newTrack];
-    saveTracks(updated);
+    addTrack(newTrackName.trim(), videoId, newTrackUrl.trim());
     setNewTrackName('');
     setNewTrackUrl('');
     setShowAddForm(false);
@@ -250,15 +213,7 @@ export default function MentalWellness() {
 
   const handleDeleteTrack = (trackId, e) => {
     e.stopPropagation();
-    const updated = tracks.filter(t => t.id !== trackId);
-    saveTracks(updated);
-    if (playingTrackId === trackId) {
-      if (player && typeof player.stopVideo === 'function') {
-        player.stopVideo();
-      }
-      setPlayingTrackId(null);
-      setPlayerState(-1);
-    }
+    deleteTrack(trackId);
   };
 
   const handleStartRename = (track, e) => {
@@ -271,69 +226,15 @@ export default function MentalWellness() {
     if (e) e.stopPropagation();
     if (!editingTrackName.trim()) return;
 
-    const updated = tracks.map(t => t.id === trackId ? { ...t, name: editingTrackName.trim() } : t);
-    saveTracks(updated);
+    renameTrack(trackId, editingTrackName.trim());
     setEditingTrackId(null);
   };
 
   const handlePlayPause = (track) => {
     if (playingTrackId === track.id) {
-      if (player && typeof player.getPlayerState === 'function') {
-        const state = player.getPlayerState();
-        if (state === 1) { // playing
-          player.pauseVideo();
-          setPlayerState(2);
-        } else {
-          player.playVideo();
-          setPlayerState(1);
-        }
-      }
+      togglePlayPause();
     } else {
-      setPlayingTrackId(track.id);
-      setPlayerState(3); // buffering
-
-      if (player && typeof player.loadVideoById === 'function') {
-        player.loadVideoById(track.videoId);
-        player.playVideo();
-      } else {
-        const initPlayer = () => {
-          const ytPlayer = new window.YT.Player('youtube-player-target', {
-            height: '0',
-            width: '0',
-            videoId: track.videoId,
-            playerVars: {
-              autoplay: 1,
-              controls: 0,
-              showinfo: 0,
-              rel: 0,
-              loop: 0
-            },
-            events: {
-              onReady: (event) => {
-                event.target.playVideo();
-                setPlayer(event.target);
-                setPlayerState(1);
-              },
-              onStateChange: (event) => {
-                setPlayerState(event.data);
-              },
-              onError: (event) => {
-                console.error("YouTube Player Error:", event.data);
-                setPlayerState(-1);
-                alert("Failed to load this YouTube audio stream. Ensure the video allows embedding and is not restricted.");
-              }
-            }
-          });
-        };
-
-        if (window.YT && window.YT.Player) {
-          initPlayer();
-        } else {
-          window.onYouTubeIframeAPIReady = () => {
-            initPlayer();
-          };
-        }
-      }
+      playTrack(track.id);
     }
   };
 
@@ -476,10 +377,7 @@ export default function MentalWellness() {
               </button>
             </div>
 
-            {/* Hidden Div target for YouTube IFrame API */}
-            <div style={{ width: 0, height: 0, opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
-              <div id="youtube-player-target"></div>
-            </div>
+            {/* Hidden YouTube player moved globally to App.jsx */}
 
             {/* Add Music Form */}
             <AnimatePresence>
