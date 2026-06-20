@@ -4,7 +4,7 @@ import { supabase } from '../utils/supabaseClient';
 export const useAuthStore = create((set) => ({
   isAuthenticated: false,
   user: null,
-  loading: false,
+  loading: true,
   error: null,
 
   initialize: async () => {

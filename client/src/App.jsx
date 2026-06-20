@@ -25,7 +25,19 @@ import { useAuthStore } from './store/authStore';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isAuthenticated, loading } = useAuthStore((state) => ({
+    isAuthenticated: state.isAuthenticated,
+    loading: state.loading
+  }));
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bgDark">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

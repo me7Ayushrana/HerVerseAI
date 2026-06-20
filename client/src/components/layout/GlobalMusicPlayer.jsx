@@ -5,6 +5,13 @@ import { Play, Pause, Volume2, VolumeX, Music, ChevronLeft, ChevronRight, Maximi
 import { useMusicStore } from '../../store/musicStore';
 import { useAuthStore } from '../../store/authStore';
 
+function formatTime(seconds) {
+  if (isNaN(seconds) || seconds === null) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function GlobalMusicPlayer() {
   const {
     tracks,
@@ -16,12 +23,19 @@ export default function GlobalMusicPlayer() {
     setPlayer,
     setPlayerState,
     playTrack,
-    togglePlayPause
+    togglePlayPause,
+    currentTime,
+    duration,
+    isMuted,
+    setCurrentTime,
+    setDuration,
+    setIsMuted,
+    seekTo,
+    toggleMute
   } = useMusicStore();
 
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const location = useLocation();
-  const [isMuted, setIsMuted] = useState(false);
   const [isMinimized, setIsMinimized] = useState(true);
   const iframeTargetRef = useRef(null);
 
@@ -65,6 +79,10 @@ export default function GlobalMusicPlayer() {
             events: {
               onReady: (event) => {
                 setPlayer(event.target);
+                // Sync store's isMuted with the player initially
+                if (typeof event.target.isMuted === 'function') {
+                  setIsMuted(event.target.isMuted());
+                }
                 // If there's an active track, load it (muted/cued)
                 if (playingTrackId) {
                   const track = tracks.find(t => t.id === playingTrackId);
@@ -99,18 +117,25 @@ export default function GlobalMusicPlayer() {
     };
   }, [setPlayer, setPlayerState]);
 
-  // Toggle Mute on YT Player
-  const toggleMute = () => {
-    if (player && typeof player.mute === 'function') {
-      if (isMuted) {
-        player.unMute();
-        setIsMuted(false);
-      } else {
-        player.mute();
-        setIsMuted(true);
+  // Poll player current time and duration when playing
+  useEffect(() => {
+    let timer;
+    if (player && playerState === 1) { // 1 is playing
+      timer = setInterval(() => {
+        if (typeof player.getCurrentTime === 'function') {
+          setCurrentTime(player.getCurrentTime());
+        }
+        if (typeof player.getDuration === 'function') {
+          setDuration(player.getDuration());
+        }
+      }, 500);
+    } else if (player && (playerState === 2 || playerState === 0)) { // paused or ended
+      if (typeof player.getCurrentTime === 'function') {
+        setCurrentTime(player.getCurrentTime());
       }
     }
-  };
+    return () => clearInterval(timer);
+  }, [player, playerState, setCurrentTime, setDuration]);
 
   // Find playing track details
   const playingTrack = tracks.find(t => t.id === playingTrackId);
@@ -199,8 +224,27 @@ export default function GlobalMusicPlayer() {
                   </div>
                 </div>
 
+                {/* Seekbar */}
+                <div className="flex flex-col gap-1 mt-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    value={currentTime || 0}
+                    onChange={(e) => seekTo(parseFloat(e.target.value))}
+                    className="w-full h-1 bg-primary/15 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+                    style={{
+                      background: `linear-gradient(to right, #ec4899 0%, #ec4899 ${duration ? (currentTime / duration) * 100 : 0}%, #e2e8f0 ${duration ? (currentTime / duration) * 100 : 0}%, #e2e8f0 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-[9px] text-muted font-semibold">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+
                 {/* Player Controls */}
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-primary/5">
                   <button
                     onClick={toggleMute}
                     className="p-2 rounded-full hover:bg-primary/5 text-muted hover:text-primary transition-colors cursor-pointer"
@@ -219,10 +263,8 @@ export default function GlobalMusicPlayer() {
                     </button>
                   </div>
 
-                  <div className="w-16 h-1.5 bg-primary/10 rounded-full overflow-hidden relative" title="YouTube Stream Active">
-                    <div className={`absolute top-0 bottom-0 left-0 bg-primary ${
-                      playerState === 1 ? 'w-full transition-all duration-[30s] ease-linear' : 'w-2/3'
-                    }`} />
+                  <div className="w-16 h-1 bg-primary/10 rounded-full overflow-hidden relative" title="YouTube Stream Active">
+                    <div className={`absolute top-0 bottom-0 left-0 bg-primary w-full ${playerState === 1 ? 'opacity-100' : 'opacity-50'}`} />
                   </div>
                 </div>
               </div>

@@ -81,7 +81,6 @@ const getApiKeyPool = (keyString) => {
 export default function Chatbot() {
   const user = useAuthStore(state => state.user);
   const userId = user?.id || user?._id || 'mock-user-123';
-  const [isLoaded, setIsLoaded] = useState(false);
   const [apiStatus, setApiStatus] = useState('connected');
   const [keyIndex, setKeyIndex] = useState(0);
 
@@ -103,10 +102,10 @@ export default function Chatbot() {
   const [isSaved, setIsSaved] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   // Sync state when userId changes
   useEffect(() => {
-    setIsLoaded(false);
     const key = localStorage.getItem(`herverse-${userId}-gemini-key`) || localStorage.getItem('herverse-gemini-key') || '';
     setCustomApiKey(key);
     const savedMode = localStorage.getItem(`herverse-${userId}-chat-mode`);
@@ -126,16 +125,16 @@ export default function Chatbot() {
         { role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }
       ]);
     }
-
-    setIsLoaded(true);
   }, [userId]);
 
-  // Save messages to local storage whenever they update
+  // Scroll to bottom when messages or loading changes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(messages));
-    }
-  }, [messages, userId, isLoaded]);
+    scrollToBottom();
+  }, [messages, isLoading]);
 
   // Verify API Key connection status on mount, when customApiKey, mode, or userId changes
   useEffect(() => {
@@ -252,6 +251,7 @@ export default function Chatbot() {
     const chatHistory = [...messages, newMsg];
     
     setMessages(chatHistory);
+    localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(chatHistory));
     setInput('');
     setIsLoading(true);
     
@@ -350,7 +350,9 @@ IMPORTANT RULES:
           const data = await response.json();
           reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I am here to support you. Could you please rephrase your question?";
           
-          setMessages([...chatHistory, { role: 'bot', text: reply }]);
+          const updated = [...chatHistory, { role: 'bot', text: reply }];
+          setMessages(updated);
+          localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(updated));
           setApiStatus('connected');
           setKeyIndex(currentIdx);
           success = true;
@@ -406,7 +408,9 @@ IMPORTANT RULES:
       reply = `Welcome to HerVerse AI\n\nI am your companion for women's wellness. You can ask me anything about:\n- Menstrual cycles and period symptoms\n- Pregnancy care, kick counting, and fetal growth\n- PCOS/PCOD symptom management\n- Nutrition and hydration goals\n- Fitness plans and cycle-syncing exercises\n- Mental wellness and grounding techniques\n\nFeel free to ask a specific question, or select any of the dedicated tracking modules in the sidebar!${disclaimer}`;
     }
 
-    setMessages([...chatHistory, { role: 'bot', text: prefix + reply }]);
+    const updated = [...chatHistory, { role: 'bot', text: prefix + reply }];
+    setMessages(updated);
+    localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(updated));
   };
 
   return (
@@ -609,6 +613,7 @@ IMPORTANT RULES:
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {messages.length <= 1 && (

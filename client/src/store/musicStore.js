@@ -68,14 +68,19 @@ export const useMusicStore = create((set, get) => ({
   },
 
   playTrack: (trackId) => {
-    const { player, tracks } = get();
+    const { player, tracks, isMuted } = get();
     const track = tracks.find(t => t.id === trackId);
     if (!track) return;
 
-    set({ playingTrackId: trackId, playerState: 3 }); // buffering
+    set({ playingTrackId: trackId, playerState: 3, currentTime: 0, duration: 0 }); // buffering
     
     if (player && typeof player.loadVideoById === 'function') {
       player.loadVideoById(track.videoId);
+      if (isMuted) {
+        if (typeof player.mute === 'function') player.mute();
+      } else {
+        if (typeof player.unMute === 'function') player.unMute();
+      }
       player.playVideo();
     }
   },
@@ -96,6 +101,35 @@ export const useMusicStore = create((set, get) => ({
       } else {
         player.playVideo();
         set({ playerState: 1 });
+      }
+    }
+  },
+
+  currentTime: 0,
+  duration: 0,
+  isMuted: false,
+
+  setCurrentTime: (currentTime) => set({ currentTime }),
+  setDuration: (duration) => set({ duration }),
+  setIsMuted: (isMuted) => set({ isMuted }),
+
+  seekTo: (seconds) => {
+    const { player } = get();
+    if (player && typeof player.seekTo === 'function') {
+      player.seekTo(seconds, true);
+      set({ currentTime: seconds });
+    }
+  },
+
+  toggleMute: () => {
+    const { player, isMuted } = get();
+    if (player) {
+      if (isMuted) {
+        if (typeof player.unMute === 'function') player.unMute();
+        set({ isMuted: false });
+      } else {
+        if (typeof player.mute === 'function') player.mute();
+        set({ isMuted: true });
       }
     }
   }

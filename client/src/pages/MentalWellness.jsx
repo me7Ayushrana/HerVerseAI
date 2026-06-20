@@ -5,6 +5,13 @@ import { classifySentiment } from '../utils/sentimentClassifier';
 import { useAuthStore } from '../store/authStore';
 import { useMusicStore } from '../store/musicStore';
 
+function formatTime(seconds) {
+  if (isNaN(seconds) || seconds === null) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function MentalWellness() {
   const user = useAuthStore(state => state.user);
   const userId = user?.id || user?._id || 'mock-user-123';
@@ -36,7 +43,12 @@ export default function MentalWellness() {
     deleteTrack,
     renameTrack,
     playTrack,
-    togglePlayPause
+    togglePlayPause,
+    currentTime,
+    duration,
+    isMuted,
+    seekTo,
+    toggleMute
   } = useMusicStore();
 
   const [newTrackName, setNewTrackName] = useState('');
@@ -513,28 +525,62 @@ export default function MentalWellness() {
 
             {/* Controller status bar */}
             {playingTrackId && (
-              <div className="p-3 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-2xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="relative flex h-2 w-2 flex-shrink-0">
-                    {playerState === 1 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>}
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${playerState === 1 ? 'bg-primary' : playerState === 3 ? 'bg-amber-400' : 'bg-muted'}`}></span>
-                  </span>
-                  <span className="font-semibold truncate text-textMain text-left">
-                    {playerState === 1 ? 'Playing: ' : playerState === 3 ? 'Buffering: ' : 'Paused: '}
-                    {tracks.find(t => t.id === playingTrackId)?.name}
-                  </span>
+              <div className="p-4 bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 border border-primary/20 rounded-2xl flex flex-col gap-3 text-xs">
+                {/* Top Row: Info & Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      {playerState === 1 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>}
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${playerState === 1 ? 'bg-primary' : playerState === 3 ? 'bg-amber-400' : 'bg-muted'}`}></span>
+                    </span>
+                    <span className="font-bold truncate text-textMain text-left">
+                      {playerState === 1 ? 'Playing: ' : playerState === 3 ? 'Buffering: ' : 'Paused: '}
+                      {tracks.find(t => t.id === playingTrackId)?.name}
+                    </span>
+                  </div>
+
+                  {/* Play/Pause & Mute Buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={toggleMute}
+                      className="p-1.5 rounded-lg hover:bg-primary/10 text-muted hover:text-primary transition-all cursor-pointer"
+                      title={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const activeTrack = tracks.find(t => t.id === playingTrackId);
+                        if (activeTrack) handlePlayPause(activeTrack);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-primary text-white hover:opacity-95 font-bold transition-all shadow-sm flex items-center gap-1 scale-95"
+                    >
+                      {playerState === 1 ? <Pause size={12} /> : <Play size={12} />}
+                      {playerState === 1 ? 'Pause' : 'Play'}
+                    </button>
+                  </div>
                 </div>
-                
-                <button 
-                  onClick={() => {
-                    const activeTrack = tracks.find(t => t.id === playingTrackId);
-                    if (activeTrack) handlePlayPause(activeTrack);
-                  }}
-                  className="px-3 py-1 rounded-lg bg-primary text-white hover:opacity-95 font-bold transition-all shadow-sm flex items-center gap-1 flex-shrink-0 scale-95"
-                >
-                  {playerState === 1 ? <Pause size={12} /> : <Play size={12} />}
-                  {playerState === 1 ? 'Pause' : 'Play'}
-                </button>
+
+                {/* Seekbar Row */}
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    value={currentTime || 0}
+                    onChange={(e) => seekTo(parseFloat(e.target.value))}
+                    className="w-full h-1 bg-primary/15 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+                    style={{
+                      background: `linear-gradient(to right, #ec4899 0%, #ec4899 ${duration ? (currentTime / duration) * 100 : 0}%, #e2e8f0 ${duration ? (currentTime / duration) * 100 : 0}%, #e2e8f0 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-[10px] text-muted font-bold">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
