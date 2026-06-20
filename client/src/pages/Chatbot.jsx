@@ -112,8 +112,30 @@ export default function Chatbot() {
     const savedMode = localStorage.getItem(`herverse-${userId}-chat-mode`);
     const hasKey = !!(key || import.meta.env.VITE_GEMINI_API_KEY);
     setMode(savedMode || (hasKey ? 'ai' : 'local'));
+
+    // Load saved messages
+    const savedMsgStr = localStorage.getItem(`herverse-${userId}-chat-messages`);
+    if (savedMsgStr) {
+      try {
+        setMessages(JSON.parse(savedMsgStr));
+      } catch (err) {
+        console.error("Failed to parse saved chat messages:", err);
+      }
+    } else {
+      setMessages([
+        { role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }
+      ]);
+    }
+
     setIsLoaded(true);
   }, [userId]);
+
+  // Save messages to local storage whenever they update
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(messages));
+    }
+  }, [messages, userId, isLoaded]);
 
   // Verify API Key connection status on mount, when customApiKey, mode, or userId changes
   useEffect(() => {
@@ -512,6 +534,24 @@ IMPORTANT RULES:
                   {isSaved ? <Check size={16} /> : 'Save Key'}
                 </button>
               </form>
+
+              {/* Clear chat history action */}
+              <div className="mt-4 pt-4 border-t border-primary/10 flex justify-between items-center">
+                <span className="text-xs text-muted">Manage chat history:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to clear your entire chat history?")) {
+                      const initialMsg = [{ role: 'bot', text: 'Hi there! I am HerVerse AI. How can I support your wellness journey today?' }];
+                      setMessages(initialMsg);
+                      localStorage.setItem(`herverse-${userId}-chat-messages`, JSON.stringify(initialMsg));
+                    }
+                  }}
+                  className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors py-1.5 px-3 rounded-lg border border-red-200 hover:bg-red-50/50 flex items-center gap-1 cursor-pointer"
+                >
+                  Clear Chat History
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
