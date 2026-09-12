@@ -92,8 +92,14 @@ export const useAuthStore = create((set, get) => ({
   error: null,
 
   initialize: () => {
-    const session = loadSession();
+    let session = loadSession();
     if (session) {
+      // Refresh demo user fields from the hardcoded source of truth
+      const demoMatch = DEMO_USERS.find((d) => d.id === session.id);
+      if (demoMatch) {
+        session = { ...session, name: demoMatch.name, isAdmin: demoMatch.isAdmin };
+        saveSession(session);
+      }
       set({ isAuthenticated: true, user: session, loading: false, error: null });
     } else {
       set({ isAuthenticated: false, user: null, loading: false, error: null });

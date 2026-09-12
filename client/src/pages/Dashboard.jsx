@@ -161,7 +161,7 @@ export default function Dashboard() {
       {/* Top Bar */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-display font-bold text-gradient">Good morning, {displayName} 👋</h2>
+          <h2 className="text-3xl font-display font-bold text-gradient">Good morning, {displayName}</h2>
           <p className="text-muted text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex gap-4">
