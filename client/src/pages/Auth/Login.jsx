@@ -17,11 +17,6 @@ export default function Login() {
     if (error) setError('');
   };
 
-  const fillDemo = () => {
-    setFormData({ email: 'demo@herverse.ai', password: 'herverse2024' });
-    setError('');
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
@@ -83,28 +78,6 @@ export default function Login() {
           <div className="mb-6 text-center">
             <h1 className="text-3xl font-display italic text-gradient font-bold mb-2">Welcome Back</h1>
             <p className="text-muted text-sm">Sign in to continue your wellness journey</p>
-          </div>
-
-          {/* Demo credentials banner */}
-          <div className="mb-5 p-4 bg-primary/5 border border-primary/20 rounded-2xl text-xs">
-            <p className="font-bold text-primary mb-2 flex items-center gap-1.5">✨ Demo Credentials</p>
-            <div className="space-y-1 text-muted font-medium">
-              <div className="flex justify-between">
-                <span>Email:</span>
-                <span className="font-bold text-textMain">demo@herverse.ai</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Password:</span>
-                <span className="font-bold text-textMain">herverse2024</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="mt-3 w-full py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs transition-all cursor-pointer"
-            >
-              Auto-fill demo credentials →
-            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
