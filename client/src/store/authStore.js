@@ -19,7 +19,7 @@ const SESSION_KEY = 'herverse_auth_session';
 const DEMO_USERS = [
   {
     id: 'demo-user-001',
-    name: 'Priya Sharma',
+    name: 'Gurnoor',
     email: 'demo@herverse.ai',
     password: 'herverse2024',
     isAdmin: false,
