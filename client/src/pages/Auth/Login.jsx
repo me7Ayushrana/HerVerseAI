@@ -8,24 +8,30 @@ export default function Login() {
   const login = useAuthStore(state => state.login);
   const navigate = useNavigate();
   
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError('');
   };
 
-  const handleSubmit = async (e) => {
+  const fillDemo = () => {
+    setFormData({ email: 'demo@herverse.ai', password: 'herverse2024' });
+    setError('');
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    const res = await login(formData.email, formData.password);
+    setIsLoading(true);
+    const res = login(formData.email.trim(), formData.password);
+    setIsLoading(false);
     if (res.success) {
       navigate('/dashboard');
     } else {
-      setError(res.error || 'Login failed');
+      setError(res.error || 'Login failed. Please check your credentials.');
     }
   };
 
@@ -41,20 +47,9 @@ export default function Login() {
           <motion.div
             key={i}
             className="absolute text-primary/20 text-lg"
-            style={{
-              top: `${10 + (i * 19) % 80}%`,
-              left: `${5 + (i * 23) % 90}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              x: [0, (i % 2 === 0 ? 15 : -15), 0],
-              rotate: [0, i % 2 === 0 ? 20 : -20, 0],
-            }}
-            transition={{
-              duration: 10 + i * 4,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+            style={{ top: `${10 + (i * 19) % 80}%`, left: `${5 + (i * 23) % 90}%` }}
+            animate={{ y: [0, -30, 0], x: [0, (i % 2 === 0 ? 15 : -15), 0], rotate: [0, i % 2 === 0 ? 20 : -20, 0] }}
+            transition={{ duration: 10 + i * 4, repeat: Infinity, ease: 'easeInOut' }}
           >
             🌸
           </motion.div>
@@ -64,12 +59,12 @@ export default function Login() {
       {/* Left panel: Decorative Illustration */}
       <div className="hidden md:flex w-1/2 relative items-center justify-center p-12 z-10">
         <div className="glass-card p-8 w-full max-w-lg text-center flex flex-col items-center justify-center border-primary/10 shadow-lg">
-          <motion.img 
-            src={wellnessHero} 
-            alt="HerVerse Wellness" 
+          <motion.img
+            src={wellnessHero}
+            alt="HerVerse Wellness"
             className="max-h-[350px] object-contain drop-shadow-md mb-8"
             animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
           />
           <h2 className="text-3xl font-display font-bold text-textMain mb-3 italic">HerVerse AI</h2>
           <p className="text-muted text-sm max-w-sm">
@@ -80,17 +75,39 @@ export default function Login() {
       
       {/* Right panel: Login Form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-8 z-10 relative">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="glass-card p-10 w-full max-w-md border-primary/20 shadow-xl"
         >
-          <div className="mb-8 text-center">
+          <div className="mb-6 text-center">
             <h1 className="text-3xl font-display italic text-gradient font-bold mb-2">Welcome Back</h1>
             <p className="text-muted text-sm">Sign in to continue your wellness journey</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Demo credentials banner */}
+          <div className="mb-5 p-4 bg-primary/5 border border-primary/20 rounded-2xl text-xs">
+            <p className="font-bold text-primary mb-2 flex items-center gap-1.5">✨ Demo Credentials</p>
+            <div className="space-y-1 text-muted font-medium">
+              <div className="flex justify-between">
+                <span>Email:</span>
+                <span className="font-bold text-textMain">demo@herverse.ai</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Password:</span>
+                <span className="font-bold text-textMain">herverse2024</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={fillDemo}
+              className="mt-3 w-full py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs transition-all cursor-pointer"
+            >
+              Auto-fill demo credentials →
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-medium">
                 {error}
@@ -98,8 +115,8 @@ export default function Login() {
             )}
             <div>
               <label className="block text-sm font-medium text-textMain mb-2">Email Address</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
@@ -110,7 +127,7 @@ export default function Login() {
             </div>
             <div>
               <label className="block text-sm font-medium text-textMain mb-2">Password</label>
-              <input 
+              <input
                 type="password"
                 name="password"
                 value={formData.password}
@@ -122,23 +139,21 @@ export default function Login() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-muted cursor-pointer hover:text-textMain transition-colors">
-                <input 
-                  type="checkbox" 
-                  className="rounded border-primary/30 text-primary focus:ring-primary focus:ring-offset-0 bg-white" 
-                />
+                <input type="checkbox" className="rounded border-primary/30 text-primary focus:ring-primary focus:ring-offset-0 bg-white" />
                 Remember me
               </label>
               <Link to="/forgot-password" className="text-primary hover:text-secondary transition-colors font-medium">Forgot Password?</Link>
             </div>
-            <button 
+            <button
               type="submit"
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-bold hover:opacity-95 shadow-md hover:shadow-lg active:scale-[0.98] glow-hover transition-all-smooth"
+              disabled={isLoading}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-bold hover:opacity-95 shadow-md hover:shadow-lg active:scale-[0.98] glow-hover transition-all-smooth disabled:opacity-70"
             >
-              Sign In
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
           
-          <p className="mt-8 text-center text-sm text-muted">
+          <p className="mt-6 text-center text-sm text-muted">
             Don't have an account? <Link to="/signup" className="text-primary hover:text-secondary font-semibold">Sign up</Link>
           </p>
         </motion.div>
@@ -146,3 +161,4 @@ export default function Login() {
     </div>
   );
 }
+

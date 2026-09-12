@@ -21,10 +21,10 @@ export default function Signup() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    const res = await signup(formData.email, formData.password, formData.name);
+    const res = signup(formData.email, formData.password, formData.name);
     if (res.success) {
       navigate('/dashboard');
     } else {
